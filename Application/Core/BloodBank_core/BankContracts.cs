@@ -10,5 +10,7 @@ public record UnitEventView(string Action,string PreviousStatus,string NewStatus
 public record LabView(Guid Guid,Guid RequestGuid,int SubmissionAttempt,DateTime RecordedAt,Guid ActorUserGuid,string SampleReference,string SecondSample,string LabelGroup,string Method,string ImmediateSpin,string Phase37,string Ahg,string Dat,string AntibodyScreen,string ReportReference,string Conclusion,string? Notes);
 public record TemperatureView(Guid Guid,string EquipmentCode,DateTime MeasuredAt,DateTime RecordedAt,decimal Temperature,string Assessment,string? Notes,Guid ActorUserGuid);
 public record UnitDetail(UnitRow Unit,List<UnitEventView> Events,List<LabView> Tests,TemperatureView? LatestTemperature);
-public record BankCapabilities(bool Inventory,bool Unit,bool Stats,bool TemperatureHistory,bool Receive,bool Inspect,bool Test,bool Reserve,bool Thaw,bool Ready,bool Hold,bool Unreserve,bool Discard,bool Temperature,bool ReturnRequest);
-public record BankStats(int Total,int Available,int Reserved,int Thawing,int Ready,int Hold,int Expired,int ExpiringSoon,int Discarded,int ApprovedRequests,int TemperatureConcerns);
+public record BankCapabilities(bool Inventory,bool Unit,bool Stats,bool TemperatureHistory,bool Receive,bool Inspect,bool Test,bool Reserve,bool Thaw,bool Ready,bool Hold,bool Unreserve,bool Discard,bool Temperature,bool ReturnRequest,bool LabHistory);
+public record BankStats(int Total,int Available,int Reserved,int Thawing,int Ready,int Hold,int Expired,int ExpiringSoon,int Discarded,int ApprovedRequests,int TemperatureConcerns,List<BankStockCell> Stock);
+public record BankStockCell(string ProductCode,string BloodGroup,int Available);
+public record BankLabReportRow(string UnitCode,string ProductCode,string BloodGroup,string RequestNumber,LabView Test);

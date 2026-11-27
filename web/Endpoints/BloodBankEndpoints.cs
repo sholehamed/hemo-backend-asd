@@ -23,13 +23,14 @@ public class BloodBank : EndpointGroupBase
                 return await next(context);
             })
             .MapGet(Capabilities,"Capabilities").MapPost(Inventory,"Inventory").MapGet(Unit,"Unit/{guid:guid}").MapPost(Stats,"Stats")
-            .MapPost(TemperatureHistory,"TemperatureHistory").MapPost(Receive,"Receive").MapPost(Test,"Test").MapPost(Temperature,"Temperature").MapPost(ReturnRequest,"ReturnRequest")
+            .MapPost(TemperatureHistory,"TemperatureHistory").MapPost(LabHistory,"LabHistory").MapPost(Receive,"Receive").MapPost(Test,"Test").MapPost(Temperature,"Temperature").MapPost(ReturnRequest,"ReturnRequest")
             .MapPost(Inspect,"Inspect").MapPost(Reserve,"Reserve").MapPost(Thaw,"Thaw").MapPost(Ready,"Ready").MapPost(Hold,"Hold").MapPost(Unreserve,"Unreserve").MapPost(Discard,"Discard");
     }
     public async Task<Ok<BankCapabilities>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new BankCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<UnitRow>>> Inventory(ISender sender,BankInventoryQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));
     public async Task<Ok<UnitDetail>> Unit(ISender sender,Guid guid,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new BankUnitQuery(guid),ct));
     public async Task<Ok<BankStats>> Stats(ISender sender,BankStatsQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));
+    public async Task<Ok<PaginatedList<BankLabReportRow>>> LabHistory(ISender sender,BankLabHistoryQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));
     public async Task<Ok<PaginatedList<TemperatureView>>> TemperatureHistory(ISender sender,BankTemperatureQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));
     public async Task<Created<Guid>> Receive(ISender sender,ReceiveUnit input,CancellationToken ct){var id=await sender.Send(new ReceiveBankUnitCommand(input),ct);return TypedResults.Created($"/Identity/BloodBank/Unit/{id}",id);}
     public async Task<Ok<Guid>> Test(ISender sender,LabInput input,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new RecordBankLabCommand(input),ct));

@@ -7,11 +7,12 @@ namespace Application.Core.BloodBank_core.Queries;
 public record BankInventoryQuery(string? Search=null,string? Product=null,string? Group=null,string? Status=null,Guid? RequestGuid=null,string? Equipment=null,int PageNumber=1,int PageSize=20):IRequest<PaginatedList<UnitRow>>;
 public record BankUnitQuery(Guid Guid):IRequest<UnitDetail>;
 public record BankTemperatureQuery(string? Equipment=null,string? Assessment=null,DateTimeOffset? From=null,DateTimeOffset? To=null,int PageNumber=1,int PageSize=20):IRequest<PaginatedList<TemperatureView>>;
+public record BankLabHistoryQuery(string? Search=null,string? Conclusion=null,DateTimeOffset? From=null,DateTimeOffset? To=null,Guid? RequestGuid=null,int PageNumber=1,int PageSize=20):IRequest<PaginatedList<BankLabReportRow>>;
 public record BankCapabilitiesQuery:IRequest<BankCapabilities>;
 public record BankStatsQuery:IRequest<BankStats>;
 
 public class BankQueryHandler(BankBloodUnitService units,UserRoleService roles,AuthService auth):
-    IRequestHandler<BankInventoryQuery,PaginatedList<UnitRow>>,IRequestHandler<BankUnitQuery,UnitDetail>,IRequestHandler<BankTemperatureQuery,PaginatedList<TemperatureView>>,IRequestHandler<BankCapabilitiesQuery,BankCapabilities>,IRequestHandler<BankStatsQuery,BankStats>
+    IRequestHandler<BankInventoryQuery,PaginatedList<UnitRow>>,IRequestHandler<BankUnitQuery,UnitDetail>,IRequestHandler<BankTemperatureQuery,PaginatedList<TemperatureView>>,IRequestHandler<BankLabHistoryQuery,PaginatedList<BankLabReportRow>>,IRequestHandler<BankCapabilitiesQuery,BankCapabilities>,IRequestHandler<BankStatsQuery,BankStats>
 {
     private IApplicationDbContext Db=>units.db;
     private IQueryable<BankBloodUnit> Scope(UserRoleInfo u)=>units.Table.AsNoTracking().Where(x=>x.OrgLocationGUID==u.OrgLocationGUID);
@@ -23,7 +24,7 @@ public class BankQueryHandler(BankBloodUnitService units,UserRoleService roles,A
         if(!string.IsNullOrWhiteSpace(f.Search)){var s=BankValidation.Normalize(f.Search);q=q.Where(x=>x.UnitCode.Contains(s)||x.BatchNumber!.Contains(s)||x.SupplySource.Contains(f.Search));}
         if(!string.IsNullOrEmpty(f.Product))q=q.Where(x=>x.ProductCode==f.Product);
         if(!string.IsNullOrEmpty(f.Group))q=q.Where(x=>x.BloodGroup==f.Group);
-        if(!string.IsNullOrEmpty(f.Status))q=f.Status=="Expired"?q.Where(x=>x.ExpiresAt<=now&&x.Status!=BankRules.Discarded):f.Status=="ExpiringSoon"?q.Where(x=>x.ExpiresAt>now&&x.ExpiresAt<=now.AddDays(3)&&x.Status!=BankRules.Discarded):q.Where(x=>x.Status==f.Status&&(f.Status!=BankRules.Available||x.ExpiresAt>now));
+        if(!string.IsNullOrEmpty(f.Status))q=f.Status=="ThawQueue"?q.Where(x=>x.ExpiresAt>now&&(x.Status==BankRules.Thawing||x.Status==BankRules.Reserved&&!x.ThawCompletedAt.HasValue&&(x.ProductCode=="FFP"||x.ProductCode=="Cryoprecipitate"||x.ProductCode=="CryoPoorPlasma"))):f.Status=="Expired"?q.Where(x=>x.ExpiresAt<=now&&x.Status!=BankRules.Discarded):f.Status=="ExpiringSoon"?q.Where(x=>x.ExpiresAt>now&&x.ExpiresAt<=now.AddDays(3)&&x.Status!=BankRules.Discarded):q.Where(x=>x.Status==f.Status&&(f.Status!=BankRules.Available||x.ExpiresAt>now));
         if(f.RequestGuid.HasValue)q=q.Where(x=>x.BloodRequestGUID==f.RequestGuid.Value);
         if(!string.IsNullOrWhiteSpace(f.Equipment)){var e=BankValidation.Normalize(f.Equipment);q=q.Where(x=>x.EquipmentCode==e);}
         var page=Math.Clamp(f.PageNumber,1,100000);var size=Math.Clamp(f.PageSize,1,100);var count=await q.CountAsync(ct);
@@ -48,19 +49,38 @@ public class BankQueryHandler(BankBloodUnitService units,UserRoleService roles,A
         var page=Math.Clamp(f.PageNumber,1,100000);var size=Math.Clamp(f.PageSize,1,100);var count=await q.CountAsync(ct);
         return new(await q.OrderByDescending(t=>t.MeasuredAt).ThenByDescending(t=>t.RecordedAt).ThenByDescending(t=>t.GUID).Skip((page-1)*size).Take(size).Select(Temp()).ToListAsync(ct),count,page,size);
     }
+    public async Task<PaginatedList<BankLabReportRow>> Handle(BankLabHistoryQuery f,CancellationToken ct)
+    {
+        var u=await BankAccess.Require(roles,auth,"post","/LabHistory",ct);
+        var q=Db.BankCompatibilityTest.AsNoTracking().Where(t=>t.Unit.OrgLocationGUID==u.OrgLocationGUID&&t.BloodRequest.PatientAdmission.OrgLocationGUID==u.OrgLocationGUID);
+        if(!string.IsNullOrWhiteSpace(f.Search)){var s=f.Search.Trim();q=q.Where(t=>t.Unit.UnitCode.Contains(s)||t.BloodRequest.RequestNumber.Contains(s)||t.ReportReference.Contains(s)||t.SampleReference.Contains(s));}
+        if(!string.IsNullOrWhiteSpace(f.Conclusion))q=q.Where(t=>t.Conclusion==f.Conclusion);
+        if(f.From.HasValue)q=q.Where(t=>t.RecordedAt>=f.From.Value.UtcDateTime);
+        if(f.To.HasValue)q=q.Where(t=>t.RecordedAt<=f.To.Value.UtcDateTime);
+        if(f.RequestGuid.HasValue)q=q.Where(t=>t.BloodRequestGUID==f.RequestGuid.Value);
+        var page=Math.Clamp(f.PageNumber,1,100000);var size=Math.Clamp(f.PageSize,1,100);var count=await q.CountAsync(ct);
+        var rows=await q.OrderByDescending(t=>t.RecordedAt).ThenByDescending(t=>t.GUID).Skip((page-1)*size).Take(size)
+            .Select(t=>new BankLabReportRow(t.Unit.UnitCode,t.Unit.ProductCode,t.Unit.BloodGroup,t.BloodRequest.RequestNumber,
+                new LabView(t.GUID,t.BloodRequestGUID,t.SubmissionAttempt,t.RecordedAt,t.ActorUserGUID,t.SampleReference,t.SecondSample,t.LabelGroup,t.Method,t.ImmediateSpin,t.Phase37,t.Ahg,t.Dat,t.AntibodyScreen,t.ReportReference,t.Conclusion,t.Notes))).ToListAsync(ct);
+        return new(rows,count,page,size);
+    }
     public async Task<BankCapabilities> Handle(BankCapabilitiesQuery f,CancellationToken ct)
     {
         var u=await AdmissionScope.GetAssignmentAsync(roles,auth,ct);
         Task<bool> Can(string p,string method="post")=>BankAccess.Can(roles,u,method,"/"+p,ct);
-        return new(await Can("Inventory"),await Can("Unit/{guid}","get"),await Can("Stats"),await Can("TemperatureHistory"),await Can("Receive"),await Can("Inspect"),await Can("Test"),await Can("Reserve"),await Can("Thaw"),await Can("Ready"),await Can("Hold"),await Can("Unreserve"),await Can("Discard"),await Can("Temperature"),await Can("ReturnRequest"));
+        return new(await Can("Inventory"),await Can("Unit/{guid}","get"),await Can("Stats"),await Can("TemperatureHistory"),await Can("Receive"),await Can("Inspect"),await Can("Test"),await Can("Reserve"),await Can("Thaw"),await Can("Ready"),await Can("Hold"),await Can("Unreserve"),await Can("Discard"),await Can("Temperature"),await Can("ReturnRequest"),await Can("LabHistory"));
     }
     public async Task<BankStats> Handle(BankStatsQuery f,CancellationToken ct)
     {
         var u=await BankAccess.Require(roles,auth,"post","/Stats",ct);var q=Scope(u);var now=DateTime.UtcNow;
-        var data=await q.Select(x=>new{x.Status,x.ExpiresAt}).ToListAsync(ct);
-        int Count(string s)=>data.Count(x=>x.Status==s&&x.ExpiresAt>now);
+        var horizon=now.AddDays(3);
+        var data=await q.GroupBy(x=>new{x.Status,Expired=x.ExpiresAt<=now,Soon=x.ExpiresAt>now&&x.ExpiresAt<=horizon})
+            .Select(g=>new{g.Key.Status,g.Key.Expired,g.Key.Soon,Count=g.Count()}).ToListAsync(ct);
+        int Count(string s)=>data.Where(x=>x.Status==s&&!x.Expired).Sum(x=>x.Count);
+        var stock=await q.Where(x=>x.Status==BankRules.Available&&x.ExpiresAt>now).GroupBy(x=>new{x.ProductCode,x.BloodGroup})
+            .Select(g=>new BankStockCell(g.Key.ProductCode,g.Key.BloodGroup,g.Count())).ToListAsync(ct);
         var approvals=await Db.BloodRequest.CountAsync(r=>r.PatientAdmission.OrgLocationGUID==u.OrgLocationGUID&&r.Status=="AwaitingBank",ct);
         var concern=await Db.BankTemperatureLog.Where(t=>t.OrgLocationGUID==u.OrgLocationGUID&&t.Assessment!="Acceptable"&&t.MeasuredAt>=now.AddDays(-1)).CountAsync(ct);
-        return new(data.Count,Count(BankRules.Available),Count(BankRules.Reserved),Count(BankRules.Thawing),Count(BankRules.Ready),Count(BankRules.ReceivedHold)+Count(BankRules.Quarantined),data.Count(x=>x.Status!=BankRules.Discarded&&x.ExpiresAt<=now),data.Count(x=>x.Status!=BankRules.Discarded&&x.ExpiresAt>now&&x.ExpiresAt<=now.AddDays(3)),data.Count(x=>x.Status==BankRules.Discarded),approvals,concern);
+        return new(data.Sum(x=>x.Count),Count(BankRules.Available),Count(BankRules.Reserved),Count(BankRules.Thawing),Count(BankRules.Ready),Count(BankRules.ReceivedHold)+Count(BankRules.Quarantined),data.Where(x=>x.Status!=BankRules.Discarded&&x.Expired).Sum(x=>x.Count),data.Where(x=>x.Status!=BankRules.Discarded&&x.Soon).Sum(x=>x.Count),data.Where(x=>x.Status==BankRules.Discarded).Sum(x=>x.Count),approvals,concern,stock);
     }
 }

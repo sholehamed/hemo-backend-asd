@@ -23,13 +23,13 @@ public static class HemoDemoSeed
         new("Doctor","hemo.doctor","HEMO | پزشک","پزشک",["list","detail","request-list","request-detail","request-stats","request-doctor","request-edit","request-submit","request-cancel","request-decide"]),
         new("BloodBank","hemo.bloodbank","HEMO | کارشناس بانک خون","بانک خون",["request-bank","request-bank-detail"])
     ];
-    public static readonly string[] BankReadKeys=["bank-inventory","bank-unit","bank-stats","bank-temperature-history"];
+    public static readonly string[] BankReadKeys=["bank-inventory","bank-unit","bank-stats","bank-temperature-history","bank-lab-history"];
     public static readonly string[] BankOperatorKeys=[..BankReadKeys,"bank-receive","bank-test","bank-reserve","bank-thaw","bank-ready","bank-hold","bank-unreserve","bank-temperature"];
     public static readonly string[] BankSupervisorKeys=[..BankOperatorKeys,"bank-inspect","bank-discard","bank-return"];
     public static readonly Account BankSupervisor=new("BankSupervisor","hemo.bank.supervisor","HEMO | مسئول بانک خون","مسئول بانک خون",["request-bank","request-bank-detail",..BankSupervisorKeys]);
     public static readonly (string Key,string Method,string Path)[] BankEndpoints=[
         ("bank-inventory","post","/Identity/BloodBank/Inventory"),("bank-unit","get","/Identity/BloodBank/Unit/{guid}"),("bank-stats","post","/Identity/BloodBank/Stats"),("bank-temperature-history","post","/Identity/BloodBank/TemperatureHistory"),
-        ("bank-receive","post","/Identity/BloodBank/Receive"),("bank-inspect","post","/Identity/BloodBank/Inspect"),("bank-test","post","/Identity/BloodBank/Test"),("bank-reserve","post","/Identity/BloodBank/Reserve"),
+        ("bank-lab-history","post","/Identity/BloodBank/LabHistory"),("bank-receive","post","/Identity/BloodBank/Receive"),("bank-inspect","post","/Identity/BloodBank/Inspect"),("bank-test","post","/Identity/BloodBank/Test"),("bank-reserve","post","/Identity/BloodBank/Reserve"),
         ("bank-thaw","post","/Identity/BloodBank/Thaw"),("bank-ready","post","/Identity/BloodBank/Ready"),("bank-hold","post","/Identity/BloodBank/Hold"),("bank-unreserve","post","/Identity/BloodBank/Unreserve"),
         ("bank-discard","post","/Identity/BloodBank/Discard"),("bank-temperature","post","/Identity/BloodBank/Temperature"),("bank-return","post","/Identity/BloodBank/ReturnRequest")
     ];

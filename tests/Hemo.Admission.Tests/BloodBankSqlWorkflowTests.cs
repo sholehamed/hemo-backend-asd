@@ -99,6 +99,7 @@ public class BloodBankSqlWorkflowTests
             await bank.Handle(new RecordBankTemperatureCommand(new("FIX-FREEZER",now,-25m,"Acceptable","Fixture assessment")),ct);
             Actor("hemo.bank.supervisor");Assert.True((await bq.Handle(new BankCapabilitiesQuery(),ct)).Inspect);
             foreach(var id in new[]{unit,extra,frozen})await Action(id,"Inspect","Inspect");
+            var stats=await bq.Handle(new BankStatsQuery(),ct);Assert.Equal(3,stats.Available);Assert.Equal(2,stats.Stock.Single(x=>x.ProductCode=="RBC").Available);
             Actor("hemo.bloodbank");
             await Assert.ThrowsAsync<ServiceExeption>(()=>Action(unit,"Reserve","Reserve",guid,requestVersion));
             async Task Lab(Guid id,string conclusion="Accepted",string ahg="NonReactive"){
@@ -106,6 +107,7 @@ public class BloodBankSqlWorkflowTests
             }
             await Assert.ThrowsAsync<ServiceExeption>(()=>Lab(unit,"Accepted","Reactive"));
             await Lab(unit);await Lab(extra);await Lab(frozen);
+            Assert.Equal(3,(await bq.Handle(new BankLabHistoryQuery(RequestGuid:guid),ct)).TotalCount);
             var stale=(await Get(unit)).Unit.Version;
             await Action(unit,"Reserve","Reserve",guid,requestVersion);
             await Assert.ThrowsAsync<ServiceExeption>(()=>bank.Handle(new BankUnitActionCommand(new(unit,stale,"Hold",Reason:"Stale"),"Hold"),ct));
@@ -113,10 +115,12 @@ public class BloodBankSqlWorkflowTests
             await Action(unit,"Ready","Ready");
             Assert.Equal("Ready",(await Get(unit)).Unit.Status);
             await Action(frozen,"Reserve","Reserve",guid,requestVersion);
+            Assert.Equal(frozen,Assert.Single((await bq.Handle(new BankInventoryQuery(Status:"ThawQueue"),ct)).Data).Guid);
             await Assert.ThrowsAsync<ServiceExeption>(()=>Action(frozen,"Ready","Ready"));
             await Action(frozen,"StartThaw","Thaw",method:"Fixture procedure");
             await Assert.ThrowsAsync<ServiceExeption>(()=>Action(frozen,"FinishThaw","Thaw",method:"Fixture",temp:35m,expiry:now.AddDays(3)));
             await Action(frozen,"FinishThaw","Thaw",method:"Fixture procedure",temp:35m,expiry:now.AddHours(2));
+            Assert.Empty((await bq.Handle(new BankInventoryQuery(Status:"ThawQueue"),ct)).Data);
             await Action(frozen,"Ready","Ready");
             Assert.Equal("Ready",(await Get(frozen)).Unit.Status);
             var inv=await bq.Handle(new BankInventoryQuery(RequestGuid:guid),ct);Assert.Equal(2,inv.TotalCount);
@@ -137,6 +141,7 @@ public class BloodBankSqlWorkflowTests
             db.UserRole.Add(assignment);await db.SaveChangesAsync(ct);db.ChangeTracker.Clear();
             http.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",bankRole.UserGUID.ToString()),new Claim("UserRoles",assignment.Gkey.ToString())},"Fixture"));http.Request.Headers["UserRole"]=assignment.Gkey.ToString();
             Assert.Empty((await bq.Handle(new BankInventoryQuery(),ct)).Data);
+            Assert.Empty((await bq.Handle(new BankLabHistoryQuery(),ct)).Data);
             await Assert.ThrowsAsync<ServiceExeption>(()=>bq.Handle(new BankUnitQuery(unit),ct));
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}

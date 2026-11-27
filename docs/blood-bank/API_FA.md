@@ -19,3 +19,5 @@ Base /Identity/BloodBank — Bearer، UserRole، scope مرکز، مجوز صر�
 | POST | /Temperature | ثبت دما و ارزیابی مستند؛ نگرانی باعث توقف واحدها |
 | POST | /ReturnRequest | برگشت درخواست بانک بدون رزرو فعال |
 UnitAction: guid، version(base64)، action، requestGuid/requestVersion برای رزرو، reason (الزامی)، method/temperature/effectiveExpiry برای ذوب. LabInput: unitGuid/unitVersion، requestGuid/requestVersion، sampleReference، secondSample، labelGroup، method، immediateSpin، phase37، ahg، dat، antibodyScreen، reportReference، conclusion، notes. همه زمان‌های ورودی DateTimeOffset؛ ذخیره UTC. کنترل نسخه و انقضا و ارزیابی دمای ثبت‌شده؛ آستانه دما و عمر فرآورده بر اساس مصوبات بیمارستان تنظیم/تأیید شود، سامانه محاسبه نمی‌کند. درخواست برای صدور در ST-05 باید مجدداً کنترل شود.
+
+`/LabHistory` (POST): گزارش صفحه‌بندی‌شده آزمایش‌ها با Search، Conclusion، From/To، RequestGuid. `/Stats` شامل Stock (تعداد موجودی آزاد به تفکیک گروه و فرآورده) و `/Inventory` فیلتر `ThawQueue` شامل رزروهای نیازمند ذوب و واحدهای در حال ذوب است.

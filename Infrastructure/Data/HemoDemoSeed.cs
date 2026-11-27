@@ -335,8 +335,9 @@ public static class HemoDemoSeed
             }
         }
         var includeCompanyMenuPilot=config.GetValue<bool>("HemoSeed:IncludeCompanyMenuPilot");
-        if(includeCompanyMenuPilot||config.GetValue<bool>("HemoSeed:IncludeAdmissionRouteMenus"))
-            await HemoAdmissionRouteSeed.ApplyAsync(db,menu.GUID,apis,accounts,ct,includeCompanyMenuPilot);
+        var includeAdmissionReadPages=config.GetValue<bool>("HemoSeed:IncludeAdmissionReadPages");
+        if(includeCompanyMenuPilot||includeAdmissionReadPages||config.GetValue<bool>("HemoSeed:IncludeAdmissionRouteMenus"))
+            await HemoAdmissionRouteSeed.ApplyAsync(db,menu.GUID,apis,accounts,ct,includeCompanyMenuPilot,includeAdmissionReadPages);
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);

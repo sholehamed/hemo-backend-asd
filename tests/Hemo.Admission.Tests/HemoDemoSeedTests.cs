@@ -184,6 +184,31 @@ public class HemoDemoSeedTests
                 ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeAdmissionRouteMenus"]="true"
             }).Build(),ct);
             Assert.Equal(root.GUID,(await db.Menu.SingleAsync(m=>m.GUID==statsId,ct)).PMenuGUID);
+
+            // Upgrade the prior report-only deployment without adding API grants.
+            var readPaths=new[]{"/admission/list","/admission/his"};
+            var previous=await db.Menu.Where(m=>readPaths.Contains(m.routerLink)).ToListAsync(ct);
+            Assert.Equal(2,previous.Count);
+            Assert.All(previous,m=>Assert.Null(m.PMenuGUID));
+            var readIds=previous.Select(m=>m.GUID).ToHashSet();
+            var readCfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeAdmissionReadPages"]="true"
+            }).Build();
+            await HemoDemoSeed.ApplyAsync(db,readCfg,ct);
+            db.ChangeTracker.Clear();
+            var attached=await db.Menu.Where(m=>m.PMenuGUID==root.GUID).ToListAsync(ct);
+            Assert.Equal(3,attached.Count);
+            Assert.True(readIds.SetEquals(attached.Where(m=>readPaths.Contains(m.routerLink)).Select(m=>m.GUID)));
+            Assert.All(attached,m=>{Assert.Equal(root.Path+m.Gkey+"/",m.Path);Assert.Equal(root.Level+1,m.Level);Assert.False(m.IsPublic);});
+            Assert.True(await RootVisible(nurse.GUID));
+            Assert.Equal(2,await db.RoleAccess.Where(r=>r.RoleGUID==nurse.GUID&&readPaths.Contains(r.Menu.routerLink)).Select(r=>r.MenuGUID).Distinct().CountAsync(ct));
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.RoleGUID==nurse.GUID&&r.MenuGUID==statsId,ct));
+            Assert.True(grants.SetEquals(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.MenuGUID,r.ApiGUID}).ToListAsync(ct)));
+            Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));
+            await HemoDemoSeed.ApplyAsync(db,readCfg,ct);
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(3,await db.Menu.CountAsync(m=>m.PMenuGUID==root.GUID,ct));
+            Assert.True(grants.SetEquals(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.MenuGUID,r.ApiGUID}).ToListAsync(ct)));
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
     }

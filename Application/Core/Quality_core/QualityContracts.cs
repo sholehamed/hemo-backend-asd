@@ -19,3 +19,5 @@ public record QualityStatsFilter(DateTimeOffset? From=null,DateTimeOffset? To=nu
 public record QualityCount(string Key,int Count);
 public record QualityUsage(string ProductCode,int Received,int Started,int Completed,int Discarded);
 public record QualityStats(int QcRecords,int QcAwaitingReview,int CommitteeMeetings,int OpenResolutions,int OverdueResolutions,int Audits,int TrainingCourses,int AttendanceRecords,int Present,int EquipmentIncidents,int ReactionCases,List<QualityUsage> Products,List<QualityCount> CompletedByWard);
+
+public record QualityCapabilities(Dictionary<string,bool> Permissions,Guid UserGuid);

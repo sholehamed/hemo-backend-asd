@@ -78,7 +78,7 @@ public class HemoQuality : EndpointGroupBase
             .MapPost(CommitteeVerify,"CommitteeVerify")
             .MapPost(CommitteeReturn,"CommitteeReturn");
     }
-    public async Task<Ok<Dictionary<string,bool>>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new QualityCapabilitiesQuery(),ct));
+    public async Task<Ok<QualityCapabilities>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new QualityCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<EquipmentRow>>> EquipmentList(ISender sender,EquipmentFilter input,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new EquipmentListQuery(input),ct));
     public async Task<Ok<EquipmentDetail>> EquipmentDetail(ISender sender,Guid guid,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new EquipmentDetailQuery(guid),ct));
     public async Task<Ok<EquipmentSummary>> EquipmentStats(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new EquipmentSummaryQuery(),ct));

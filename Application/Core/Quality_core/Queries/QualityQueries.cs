@@ -8,11 +8,11 @@ namespace Application.Core.Quality_core.Queries;
 public record QualityListQuery(string Kind,QualityFilter Filter):IRequest<PaginatedList<QualityRow>>;
 public record QualityDetailQuery(string Kind,Guid Guid):IRequest<QualityDetail>;
 public record QualityOwnersQuery(string Kind):IRequest<List<QualityOwner>>;
-public record QualityCapabilitiesQuery:IRequest<Dictionary<string,bool>>;
+public record QualityCapabilitiesQuery:IRequest<QualityCapabilities>;
 public record FacilityQuery:IRequest<FacilityView>;
 public record QualityStatsQuery(QualityStatsFilter Filter):IRequest<QualityStats>;
 public class QualityQueryHandler(HemoQualityRecordService records,UserRoleService roles,AuthService auth):
-    IRequestHandler<QualityListQuery,PaginatedList<QualityRow>>,IRequestHandler<QualityDetailQuery,QualityDetail>,IRequestHandler<QualityOwnersQuery,List<QualityOwner>>,IRequestHandler<QualityCapabilitiesQuery,Dictionary<string,bool>>,IRequestHandler<FacilityQuery,FacilityView>,IRequestHandler<QualityStatsQuery,QualityStats>
+    IRequestHandler<QualityListQuery,PaginatedList<QualityRow>>,IRequestHandler<QualityDetailQuery,QualityDetail>,IRequestHandler<QualityOwnersQuery,List<QualityOwner>>,IRequestHandler<QualityCapabilitiesQuery,QualityCapabilities>,IRequestHandler<FacilityQuery,FacilityView>,IRequestHandler<QualityStatsQuery,QualityStats>
 {
     private IApplicationDbContext Db=>records.db;
     private static Expression<Func<HemoQualityRecord,QualityRow>> Row()=>r=>new(r.GUID,r.Kind,r.Number,r.Title,r.Ward,r.Status,r.OccurredAt,r.CreatedByUserGUID,r.ReviewedAt,r.Version,r.Number.StartsWith("DEMO-"));
@@ -40,14 +40,14 @@ public class QualityQueryHandler(HemoQualityRecordService records,UserRoleServic
     {
         var a=await QualityAccess.Require(roles,auth,"get","/"+cmd.Kind+"Owners",ct);var rows=await QualityOwnerScope.Eligible(Db,a.OrgLocationGUID,cmd.Kind=="Committee").Select(x=>new{x.UserGUID,Name=x.User.FirstName+" "+x.User.LastName}).Distinct().OrderBy(x=>x.Name).ToListAsync(ct);return rows.Select(x=>new QualityOwner(x.UserGUID,x.Name)).ToList();
     }
-    public async Task<Dictionary<string,bool>> Handle(QualityCapabilitiesQuery cmd,CancellationToken ct)
+    public async Task<QualityCapabilities> Handle(QualityCapabilitiesQuery cmd,CancellationToken ct)
     {
         var a=await AdmissionScope.GetAssignmentAsync(roles,auth,ct);var result=new Dictionary<string,bool>();
         var items=new List<(string Key,string Method,string Path)>{("equipmentList","post","EquipmentList"),("equipmentDetail","get","EquipmentDetail/{guid}"),("equipmentStats","post","EquipmentStats"),("equipmentCreate","post","EquipmentCreate"),("equipmentEdit","post","EquipmentEdit"),("equipmentService","post","EquipmentService"),("equipmentHold","post","EquipmentHold"),("equipmentRelease","post","EquipmentRelease"),("equipmentArchive","post","EquipmentArchive"),("equipmentTemperature","post","EquipmentTemperature"),("incidents","post","Incidents"),("incidentReport","post","IncidentReport"),("incidentResolve","post","IncidentResolve"),("facility","get","Facility"),("facilitySave","post","FacilitySave"),("stats","post","Stats")};
         foreach(var kind in QualityRules.Kinds){foreach(var action in new[]{"List","Detail","Create","Edit","Line","Submit","Approve"})items.Add((char.ToLowerInvariant(kind[0])+kind[1..]+action,action=="Detail"?"get":"post",kind+action+(action=="Detail"?"/{guid}":"")));if(kind is "Committee" or "Training")items.Add((char.ToLowerInvariant(kind[0])+kind[1..]+"Owners","get",kind+"Owners"));}
         foreach(var action in new[]{"Progress","Verify","Close"})items.Add(("committee"+action,"post","Committee"+action));
         foreach(var x in items)result[x.Key]=await QualityAccess.Can(roles,a,x.Method,"/"+x.Path,ct);
-        return result;
+        return new(result,a.UserGuid);
     }
     public async Task<FacilityView> Handle(FacilityQuery cmd,CancellationToken ct)
     {

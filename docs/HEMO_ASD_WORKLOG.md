@@ -189,3 +189,5 @@
 
 ### ST07-10 | Seed/permissions
 - ۴ حساب جدید، grant نوع‌محور، login menu additive، manifest، ۴ تجهیز و حادثه و ۴ پرونده آموزشی و پروفایل مرکز. ثبت مغایرت دما از ST04 نیز Hold تجهیز ثبت‌شده را لحاظ می‌کند؛ release نیازمند گواهی پس از رفع نقص و تأیید مستقل. CI pending.
+
+- CI ST07-01: migration و 97 تست قبلی سبز. ST07-02/03: 101 غیر SQL + 7 SQL سبز. خطای navigation گزارش BankUnitEvent در ST07-04..09 اصلاح شد. قرارداد capabilities با شناسه کاربر؛ آزمون SQL جدید seed، حادثه/سرویس، توقف دمایی، QC/ممیزی/آموزش/مصوبه، پروفایل و جداسازی مرکز. CI pending.

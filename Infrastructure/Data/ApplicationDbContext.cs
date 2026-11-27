@@ -66,6 +66,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BloodTransferEvent> BloodTransferEvent { get; set; }
     public DbSet<BloodTransferVital> BloodTransferVital { get; set; }
 
+    public DbSet<HemoReaction> HemoReaction { get; set; }
+    public DbSet<HemoReactionEvent> HemoReactionEvent { get; set; }
+    public DbSet<HemoCapa> HemoCapa { get; set; }
+    public DbSet<HemoReport> HemoReport { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

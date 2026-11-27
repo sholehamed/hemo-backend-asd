@@ -18,6 +18,7 @@ using Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -26,12 +27,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using web.Infrastructure;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Hemo.Admission.Tests;
 
 // Never runs company Program or its hard-coded database/external integrations.
 // Real endpoint classes, application DI, JWT bearer validation, token store and SQL.
-public class IsolatedHttpAcceptanceTests
+public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
 {
     private sealed class Audit(AuthService auth):SaveChangesInterceptor
     {
@@ -84,6 +86,13 @@ public class IsolatedHttpAcceptanceTests
         builder.Services.AddExceptionHandler<CustomExceptionHandler>();
         await using var app=builder.Build();
         app.UseExceptionHandler();
+        // Surface unexpected routing/pipeline exceptions in the test output, without logging headers or tokens.
+        app.Use(async (context,next)=>
+        {
+            try { await next(context); }
+            catch(Exception ex) { output.WriteLine(ex.ToString()); throw; }
+        });
+        app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
         new Web.Endpoints.PatientAdmission().Map(app);
@@ -92,7 +101,14 @@ public class IsolatedHttpAcceptanceTests
         new Web.Endpoints.Transfusion().Map(app);
         new Web.Endpoints.Hemovigilance().Map(app);
         new Web.Endpoints.HemoQuality().Map(app);
+        new Web.Endpoints.HemoSession().Map(app);
         new Web.Endpoints.RoleAccess().Map(app);
+        // Materialize real route metadata before any network request. The framework requires globally unique names.
+        var endpoints=((IEndpointRouteBuilder)app).DataSources.SelectMany(s=>s.Endpoints).OfType<RouteEndpoint>().ToArray();
+        var names=endpoints.Select(e=>e.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName).Where(n=>n!=null).ToArray();
+        Assert.Equal(names.Length,names.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(137,names.Count(n=>n!.StartsWith("HEMO.",StringComparison.Ordinal)));
+        Assert.Equal(endpoints.Length,endpoints.SelectMany(e=>e.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.Select(m=>m+" "+e.RoutePattern.RawText)).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         var actors=new Dictionary<string,(Guid User,long Role,Guid TokenKey)>();
         var started=false;
         try

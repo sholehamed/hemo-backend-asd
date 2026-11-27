@@ -109,3 +109,6 @@
 - Run 46013810433 on 320f2393: Release build PASS; 22 rule/model tests PASS; SQL Server clean migration test PASS (1/1), no live DB accessed.
 - Added a SQL integration fixture covering creation, duplicate HIS rejection, temporary identity resolution, linked readmissions, stale version rejection, identity/history/clearance transitions, audit reviews, statistics, facility isolation and API-specific role grant. It uses real SQL and actual handlers, with test-only identity claims/audit stamping rather than company login/Mongo logging. Execution pending next CI run.
 - Backend PR #3 / Frontend PR #2 remain drafts. External service integration and live role provisioning still pending.
+
+## 2026-11-27 — ST-02 acceptance / seed
+- Prior CI both latest PR/push green. Found ordinary login only emits role Gkey 1/2 absent package; added HEMO-specific endpoint using existing login handler/Captcha/OTP and token issuance, selecting authorized HEMO assignments. Existing login behavior retained. Added local admission endpoint expiry/session validation and blocked/force-change role checks. Development-only opt-in seed for three accounts, exact API grants, facility and menu; no fixed secrets or privileged users, no changes to existing seed. Requires CI and actual organizational environment verification.

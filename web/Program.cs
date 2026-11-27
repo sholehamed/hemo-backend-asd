@@ -37,6 +37,7 @@ app.UseSimpleCaptcha(builder.Configuration.GetSection("BotDetect"));
 
 
 await app.InitialiseDatabaseAsync();
+await app.SeedHemoDemoAsync();
 
 app.UseStaticFiles();
 

@@ -1,4 +1,6 @@
 using Application.Common.Models;
+using Application.Repository.Services;
+using Application.Common.Utility.Security;
 using Application.Core.PatientAdmission_core;
 using Application.Core.PatientAdmission_core.Commands.CreatePatientAdmission;
 using Application.Core.PatientAdmission_core.Commands.ReviewAdmission;
@@ -14,6 +16,17 @@ public class PatientAdmission : EndpointGroupBase
     public override void Map(WebApplication app)
     {
         app.MapGroup(this).RequireAuthorization()
+            .AddEndpointFilter(async (context,next) =>
+            {
+                var http=context.HttpContext;
+                var auth=http.RequestServices.GetRequiredService<AuthService>();
+                var service=http.RequestServices.GetRequiredService<UserService>();
+                var key=http.User.FindFirst("TokenKey")?.Value;
+                if(auth.GetTokenExpireDate() is not DateTime expires || expires<=DateTime.Now ||
+                   !Guid.TryParse(key,out _) || !service.CheckToken(key!))
+                    return Results.Unauthorized();
+                return await next(context);
+            })
             .MapPost(BindPatientAdmissionPaging,"BindPaging")
             .MapPost(CreatePatientAdmission)
             .MapPut(UpdatePatientAdmission)

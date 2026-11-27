@@ -11,6 +11,8 @@ internal static class AdmissionScope
     public static async Task<UserRoleInfo> GetAsync(UserRoleService roles, AuthService auth, string method, string path, CancellationToken ct)
     {
         if (auth.GetUserGUID() == Guid.Empty || auth.GetUserRoleGkey() == 0) throw new ForbiddenAccessException();
+        var assigned = await roles.Table.AsNoTracking().AnyAsync(r=>r.Gkey==auth.GetUserRoleGkey() && r.UserGUID==auth.GetUserGUID() && r.ExpireDate>DateTime.Now && !r.User.Blocked && !r.User.ForceChangePassword,ct);
+        if(!assigned) throw new ForbiddenAccessException();
         var user = await roles.GetUserRoleInfo();
         if (user.UserGuid != auth.GetUserGUID() || user.ExpireDate <= DateTime.Now) throw new ForbiddenAccessException();
         if (user.IsSuperAdmin) return user;

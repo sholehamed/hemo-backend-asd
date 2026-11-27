@@ -12,6 +12,7 @@ public class RequestApproval : AuditedEntity
     public string? Reason { get; set; }
     public int SubmissionAttempt { get; set; }
     public DateTime OccurredAt { get; set; }
+    public string? SnapshotJson { get; set; }
     public virtual BloodRequest BloodRequest { get; set; } = null!;
 
 }

@@ -4,7 +4,7 @@ namespace Application.Core.BloodRequest_core;
 public static class BloodRequestWorkflow
 {
     public const string Draft="Draft", AwaitingDoctor="AwaitingDoctor", Returned="Returned", AwaitingBank="AwaitingBank", Rejected="Rejected", Cancelled="Cancelled";
-    public static readonly IReadOnlyList<string> ProductCodes=Array.AsReadOnly(new[]{"RBC","WashedRBC","IrradiatedRBC","LeukoreducedRBC","Platelet","ApheresisPlatelet","FFP","WholeBlood","Cryoprecipitate","Autologous"});
+    public static readonly IReadOnlyList<string> ProductCodes=Array.AsReadOnly(new[]{"RBC","WashedRBC","IrradiatedRBC","LeukoreducedRBC","Platelet","ApheresisPlatelet","FFP","WholeBlood","Cryoprecipitate","Autologous","WashedLRRBC","IrradiatedLRRBC","IrradiatedPlatelet","IrradiatedApheresisPlatelet","PediatricRBC","ReconstitutedWholeBlood","CryoPoorPlasma"});
     public static readonly IReadOnlyList<string> FormTypes=Array.AsReadOnly(new[]{"General","WashedRBC","Irradiated","Apheresis","Emergency","InterHospital","Autologous"});
     public static readonly IReadOnlyList<string> Priorities=Array.AsReadOnly(new[]{"Routine","Urgent","Emergency"});
     public static bool CanEdit(string status)=>status is Draft or Returned;

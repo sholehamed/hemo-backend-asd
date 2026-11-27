@@ -2770,6 +2770,7 @@ namespace Infrastructure.SQLServer
             });
             modelBuilder.Entity("Domain.Entities.RequestClinicalData", b =>
             {
+                b.Property<string>("FormDetailsJson").HasColumnType("nvarchar(max)");
                 b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
                 b.Property<DateTime>("Created").HasColumnType("datetime2");
                 b.Property<string>("ConvertID").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
@@ -2801,6 +2802,7 @@ namespace Infrastructure.SQLServer
             });
             modelBuilder.Entity("Domain.Entities.RequestApproval", b =>
             {
+                b.Property<string>("SnapshotJson").HasColumnType("nvarchar(max)");
                 b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
                 b.Property<DateTime>("Created").HasColumnType("datetime2");
                 b.Property<string>("ConvertID").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");

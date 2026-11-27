@@ -16,6 +16,7 @@ public class RequestClinicalData : AuditedEntity
     public string? Premedication { get; set; }
     public string? SampleStatus { get; set; }
     public string? Notes { get; set; }
+    public string? FormDetailsJson { get; set; }
     public virtual BloodRequest BloodRequest { get; set; } = null!;
 
 }

@@ -72,6 +72,7 @@ public partial class AddHemoBloodRequests : Migration
         migrationBuilder.CreateIndex(name: "IX_BloodRequestItem_BloodRequestGUID_ProductCode_IsDelete", table: "BloodRequestItem", columns: new[] { "BloodRequestGUID", "ProductCode", "IsDelete" }, unique: true);
         migrationBuilder.CreateTable(name: "RequestClinicalData", columns: table => new
         {
+            FormDetailsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
             GUID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
             Created = table.Column<DateTime>(type: "datetime2", nullable: false),
             ConvertID = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -105,6 +106,7 @@ public partial class AddHemoBloodRequests : Migration
         migrationBuilder.CreateIndex(name: "IX_RequestClinicalData_BloodRequestGUID", table: "RequestClinicalData", column: "BloodRequestGUID", unique: true);
         migrationBuilder.CreateTable(name: "RequestApproval", columns: table => new
         {
+            SnapshotJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
             GUID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
             Created = table.Column<DateTime>(type: "datetime2", nullable: false),
             ConvertID = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),

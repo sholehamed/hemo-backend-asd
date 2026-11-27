@@ -151,6 +151,8 @@ public class BankCommandHandler(BankBloodUnitService units,UserRoleService roles
         // clinical temperature assessment. Releasing the hold needs a new inspection.
         if(v.Assessment!="Acceptable")
         {
+            var registered=await Db.HemoEquipment.SingleOrDefaultAsync(x=>x.OrgLocationGUID==user.OrgLocationGUID&&x.Code==code,ct);
+            if(registered!=null&&registered.Status!="Archived"){var prior=registered.Status;registered.Status="Hold";registered.LastModified=now;Db.HemoEquipmentEvent.Add(new HemoEquipmentEvent{HemoEquipmentGUID=registered.GUID,ActorUserGUID=user.UserGuid,ActorRoleGUID=user.RoleGuid,Kind="Temperature",PreviousStatus=prior,NewStatus="Hold",OccurredAt=now,Notes=v.Notes??"مغایرت ثبت‌شده",EvidenceJson=JsonSerializer.Serialize(new{TemperatureLogGuid=log.GUID,Input=v})});}
             var affected=await units.Table.Where(u=>u.OrgLocationGUID==user.OrgLocationGUID&&u.EquipmentCode==code&&(u.Status==BankRules.ReceivedHold||u.Status==BankRules.Available||u.Status==BankRules.Reserved||u.Status==BankRules.Thawing||u.Status==BankRules.Ready)).ToListAsync(ct);
             foreach(var u in affected){var before=u.Status;u.Status=BankRules.Quarantined;u.InspectionAt=null;u.LastModified=now;Event(u,user,"TemperatureHold",before,u.BloodRequestGUID,v.Notes,null,v.Temperature);}
         }

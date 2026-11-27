@@ -56,7 +56,8 @@ public class EquipmentCommandHandler(HemoEquipmentService equipment,UserRoleServ
         if(cmd.Action=="Hold"){Ensure(e.Status=="Operational");e.Status="Hold";}
         if(cmd.Action=="Release"){
             var last=await Db.HemoEquipmentEvent.Where(x=>x.HemoEquipmentGUID==e.GUID&&(x.Kind=="Calibration"||x.Kind=="Maintenance"||x.Kind=="Repair"||x.Kind=="Qualification")).OrderByDescending(x=>x.OccurredAt).ThenByDescending(x=>x.GUID).FirstOrDefaultAsync(ct);
-            var accepted=false;if(last?.EvidenceJson!=null){using var json=JsonDocument.Parse(last.EvidenceJson);accepted=json.RootElement.TryGetProperty("Result",out var result)&&result.GetString()=="Accepted";}
+            var barrier=await Db.HemoEquipmentEvent.Where(x=>x.HemoEquipmentGUID==e.GUID&&(x.Kind=="IncidentReport"||x.Kind=="IncidentResolve"||x.Kind=="Hold"||x.Kind=="Edit"||x.Kind=="Temperature"&&x.NewStatus=="Hold")).MaxAsync(x=>(DateTime?)x.OccurredAt,ct);
+            var accepted=false;if(last?.EvidenceJson!=null&&(!barrier.HasValue||last.OccurredAt>=barrier.Value)){using var json=JsonDocument.Parse(last.EvidenceJson);accepted=json.RootElement.TryGetProperty("Result",out var result)&&result.GetString()=="Accepted";}
             Ensure(QualityRules.CanRelease(e.Status,incident,accepted&&last!.ActorUserGUID!=a.UserGuid)&&QualityRules.Text(v.Reference,200)&&(!e.CalibrationDueAt.HasValue||e.CalibrationDueAt>DateTime.UtcNow)&&(!e.MaintenanceDueAt.HasValue||e.MaintenanceDueAt>DateTime.UtcNow),"گواهی معتبر، تأیید مستقل، نبود حادثه باز و سررسید معتبر لازم است.");e.Status="Operational";
         }
         if(cmd.Action=="Archive"){Ensure(QualityRules.CanArchive(e.Status,await Stored(e).AnyAsync(ct),incident),"تجهیز دارای واحد ذخیره‌شده یا حادثه باز قابل آرشیو نیست.");e.Status="Archived";}

@@ -71,8 +71,75 @@ public static class HemoDemoSeed
         ("hv-archive","post","/Identity/Hemovigilance/Archive"),
         ("hv-report-external","post","/Identity/Hemovigilance/ReportExternal")
     ];
-    public static Account[] DemoAccounts(bool includeRequests,bool includeBank,bool includeTransfusion=false,bool includeHv=false)
+    public static readonly (string Key,string Method,string Path)[] QualityEndpoints=[
+        ("quality-equipment-list","post","/Identity/HemoQuality/EquipmentList"),
+        ("quality-equipment-detail","get","/Identity/HemoQuality/EquipmentDetail/{guid}"),
+        ("quality-equipment-stats","post","/Identity/HemoQuality/EquipmentStats"),
+        ("quality-equipment-create","post","/Identity/HemoQuality/EquipmentCreate"),
+        ("quality-equipment-edit","post","/Identity/HemoQuality/EquipmentEdit"),
+        ("quality-equipment-service","post","/Identity/HemoQuality/EquipmentService"),
+        ("quality-equipment-hold","post","/Identity/HemoQuality/EquipmentHold"),
+        ("quality-equipment-release","post","/Identity/HemoQuality/EquipmentRelease"),
+        ("quality-equipment-archive","post","/Identity/HemoQuality/EquipmentArchive"),
+        ("quality-equipment-temperature","post","/Identity/HemoQuality/EquipmentTemperature"),
+        ("quality-incidents","post","/Identity/HemoQuality/Incidents"),
+        ("quality-incident-report","post","/Identity/HemoQuality/IncidentReport"),
+        ("quality-incident-resolve","post","/Identity/HemoQuality/IncidentResolve"),
+        ("quality-facility","get","/Identity/HemoQuality/Facility"),
+        ("quality-facility-save","post","/Identity/HemoQuality/FacilitySave"),
+        ("quality-stats","post","/Identity/HemoQuality/Stats"),
+        ("quality-qc-list","post","/Identity/HemoQuality/QcList"),
+        ("quality-qc-detail","get","/Identity/HemoQuality/QcDetail/{guid}"),
+        ("quality-qc-create","post","/Identity/HemoQuality/QcCreate"),
+        ("quality-qc-edit","post","/Identity/HemoQuality/QcEdit"),
+        ("quality-qc-line","post","/Identity/HemoQuality/QcLine"),
+        ("quality-qc-submit","post","/Identity/HemoQuality/QcSubmit"),
+        ("quality-qc-approve","post","/Identity/HemoQuality/QcApprove"),
+        ("quality-committee-list","post","/Identity/HemoQuality/CommitteeList"),
+        ("quality-committee-detail","get","/Identity/HemoQuality/CommitteeDetail/{guid}"),
+        ("quality-committee-create","post","/Identity/HemoQuality/CommitteeCreate"),
+        ("quality-committee-edit","post","/Identity/HemoQuality/CommitteeEdit"),
+        ("quality-committee-line","post","/Identity/HemoQuality/CommitteeLine"),
+        ("quality-committee-submit","post","/Identity/HemoQuality/CommitteeSubmit"),
+        ("quality-committee-approve","post","/Identity/HemoQuality/CommitteeApprove"),
+        ("quality-committee-progress","post","/Identity/HemoQuality/CommitteeProgress"),
+        ("quality-committee-verify","post","/Identity/HemoQuality/CommitteeVerify"),
+        ("quality-committee-close","post","/Identity/HemoQuality/CommitteeClose"),
+        ("quality-committee-owners","get","/Identity/HemoQuality/CommitteeOwners"),
+        ("quality-audit-list","post","/Identity/HemoQuality/AuditList"),
+        ("quality-audit-detail","get","/Identity/HemoQuality/AuditDetail/{guid}"),
+        ("quality-audit-create","post","/Identity/HemoQuality/AuditCreate"),
+        ("quality-audit-edit","post","/Identity/HemoQuality/AuditEdit"),
+        ("quality-audit-line","post","/Identity/HemoQuality/AuditLine"),
+        ("quality-audit-submit","post","/Identity/HemoQuality/AuditSubmit"),
+        ("quality-audit-approve","post","/Identity/HemoQuality/AuditApprove"),
+        ("quality-training-list","post","/Identity/HemoQuality/TrainingList"),
+        ("quality-training-detail","get","/Identity/HemoQuality/TrainingDetail/{guid}"),
+        ("quality-training-create","post","/Identity/HemoQuality/TrainingCreate"),
+        ("quality-training-edit","post","/Identity/HemoQuality/TrainingEdit"),
+        ("quality-training-line","post","/Identity/HemoQuality/TrainingLine"),
+        ("quality-training-submit","post","/Identity/HemoQuality/TrainingSubmit"),
+        ("quality-training-approve","post","/Identity/HemoQuality/TrainingApprove"),
+        ("quality-training-owners","get","/Identity/HemoQuality/TrainingOwners")
+    ];
+    public static readonly Account[] QualityAccounts=[
+        new("EquipmentTech","hemo.equipment.tech","HEMO | کارشناس تجهیزات","کارشناس تجهیزات",["quality-equipment-list","quality-equipment-detail","quality-equipment-stats","quality-equipment-create","quality-equipment-edit","quality-equipment-service","quality-equipment-hold","quality-equipment-temperature","quality-incidents","quality-incident-report","quality-incident-resolve"]),
+        new("EquipmentReviewer","hemo.equipment.reviewer","HEMO | بازبین فنی تجهیزات","بازبین فنی تجهیزات",["quality-equipment-list","quality-equipment-detail","quality-equipment-stats","quality-equipment-release","quality-equipment-archive","quality-incidents"]),
+        new("QualityOfficer","hemo.quality.officer","HEMO | مسئول کیفیت","مسئول کیفیت",["quality-qc-list","quality-qc-detail","quality-qc-create","quality-qc-edit","quality-qc-line","quality-qc-submit","quality-committee-list","quality-committee-detail","quality-committee-create","quality-committee-edit","quality-committee-line","quality-committee-submit","quality-committee-owners","quality-audit-list","quality-audit-detail","quality-audit-create","quality-audit-edit","quality-audit-line","quality-audit-submit","quality-training-list","quality-training-detail","quality-training-create","quality-training-edit","quality-training-line","quality-training-submit","quality-training-owners","quality-facility","quality-facility-save","quality-stats"]),
+        new("QualityReviewer","hemo.quality.reviewer","HEMO | بازبین مستقل کیفیت","بازبین مستقل کیفیت",["quality-qc-list","quality-qc-detail","quality-qc-approve","quality-committee-list","quality-committee-detail","quality-committee-approve","quality-committee-verify","quality-committee-close","quality-audit-list","quality-audit-detail","quality-audit-approve","quality-training-list","quality-training-detail","quality-training-approve","quality-facility","quality-stats"])
+    ];
+    public static Account[] DemoAccounts(bool includeRequests,bool includeBank,bool includeTransfusion=false,bool includeHv=false,bool includeQuality=false)
     {
+        if(includeQuality)return DemoAccounts(true,true,true,true).Select(a=>a.Key switch
+        {
+            "Nurse"=>a with{Permissions=[..a.Permissions,"quality-committee-list","quality-committee-detail","quality-committee-progress"]},
+            "Doctor"=>a with{Permissions=[..a.Permissions,"quality-committee-list","quality-committee-detail","quality-committee-progress"]},
+            "BloodBank"=>a with{Permissions=[..a.Permissions,"quality-equipment-list","quality-equipment-detail","quality-equipment-temperature","quality-incidents","quality-incident-report","quality-qc-list","quality-qc-detail","quality-qc-create","quality-qc-edit","quality-qc-line","quality-qc-submit","quality-committee-list","quality-committee-detail","quality-committee-progress"]},
+            "BankSupervisor"=>a with{Permissions=[..a.Permissions,"quality-equipment-list","quality-equipment-detail","quality-equipment-stats","quality-incidents","quality-incident-report","quality-qc-list","quality-qc-detail","quality-qc-approve","quality-committee-list","quality-committee-detail","quality-committee-progress","quality-stats"]},
+            "HvOfficer"=>a with{Permissions=[..a.Permissions,"quality-committee-list","quality-committee-detail","quality-audit-list","quality-audit-detail","quality-training-list","quality-training-detail","quality-facility","quality-stats"]},
+            "HvReviewer"=>a with{Permissions=[..a.Permissions,"quality-committee-list","quality-committee-detail","quality-audit-list","quality-audit-detail","quality-training-list","quality-training-detail","quality-stats"]},
+            _=>a
+        }).Concat(QualityAccounts).ToArray();
         if(includeHv)return DemoAccounts(true,true,true).Select(a=>a.Key switch
         {
             "Nurse"=>a with{Permissions=[..a.Permissions,..HvReadKeys,"hv-candidates","hv-report","hv-observe","hv-progress"]},
@@ -121,13 +188,15 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
+        var includeQualitySamples=config.GetValue<bool>("HemoSeed:IncludeQualitySamples");
+        var includeQuality=includeQualitySamples||config.GetValue<bool>("HemoSeed:IncludeQuality");
         var includeHvSamples=config.GetValue<bool>("HemoSeed:IncludeHemovigilanceSamples");
-        var includeHv=includeHvSamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilance");
+        var includeHv=includeQuality||includeHvSamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilance");
         var includeSamples=config.GetValue<bool>("HemoSeed:IncludeTransfusionSamples");
         var includeTransfusion=includeHv||includeSamples||config.GetValue<bool>("HemoSeed:IncludeTransfusion");
         var includeBank=includeTransfusion||config.GetValue<bool>("HemoSeed:IncludeBloodBank");
         var includeRequests=includeBank||config.GetValue<bool>("HemoSeed:IncludeBloodRequests");
-        var accounts=DemoAccounts(includeRequests,includeBank,includeTransfusion,includeHv);
+        var accounts=DemoAccounts(includeRequests,includeBank,includeTransfusion,includeHv,includeQuality);
         var pending=new Dictionary<string,string>();
         foreach(var account in accounts)
         {
@@ -209,9 +278,15 @@ public static class HemoDemoSeed
             hvMenu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/hemo/hv",ct);
             if(hvMenu==null){hvMenu=new Menu{label="واکنش و هموویژیلانس",routerLink="/hemo/hv",icon="pi pi-shield",ShowInMenu=true,Gorder=5,IsPublic=false};db.Menu.Add(hvMenu);await db.SaveChangesAsync(ct);}
         }
+        Menu? qualityMenu=null;
+        if(includeQuality)
+        {
+            qualityMenu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/hemo/quality",ct);
+            if(qualityMenu==null){qualityMenu=new Menu{label="تجهیزات و مدیریت کیفیت",routerLink="/hemo/quality",icon="pi pi-cog",ShowInMenu=true,Gorder=6,IsPublic=false};db.Menu.Add(qualityMenu);await db.SaveChangesAsync(ct);}
+        }
         var apis=new Dictionary<string,Guid>();
         var endpointMenus=new Dictionary<string,Guid>();
-        foreach(var e in (includeRequests?Endpoints.Concat(BloodRequestEndpoints):Endpoints).Concat(includeBank?BankEndpoints:Array.Empty<(string,string,string)>()).Concat(includeTransfusion?TransferEndpoints:Array.Empty<(string,string,string)>()).Concat(includeHv?HvEndpoints:Array.Empty<(string,string,string)>()).Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
+        foreach(var e in (includeRequests?Endpoints.Concat(BloodRequestEndpoints):Endpoints).Concat(includeBank?BankEndpoints:Array.Empty<(string,string,string)>()).Concat(includeTransfusion?TransferEndpoints:Array.Empty<(string,string,string)>()).Concat(includeHv?HvEndpoints:Array.Empty<(string,string,string)>()).Concat(includeQuality?QualityEndpoints:Array.Empty<(string,string,string)>()).Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
         {
             var api=await db.Api.FirstOrDefaultAsync(a=>a.SubSystemGUID==subsystem.GUID && a.APITypeName==e.Item2 && a.DownstreamPathTemplate==e.Item3,ct);
             if(api==null)
@@ -222,7 +297,7 @@ public static class HemoDemoSeed
             if(!api.Active)throw new InvalidOperationException("HEMO API is inactive: "+e.Item3);
             apis[e.Item1]=api.GUID;
             if(e.Item1 is "login" or "hemo-login")continue;
-            var targetMenu=e.Item1.StartsWith("hv-")?hvMenu!:e.Item1.StartsWith("tx-")?transferMenu!:e.Item1.StartsWith("bank-")?bankMenu!:e.Item1.StartsWith("request-")?requestMenu!:menu;
+            var targetMenu=e.Item1.StartsWith("quality-")?qualityMenu!:e.Item1.StartsWith("hv-")?hvMenu!:e.Item1.StartsWith("tx-")?transferMenu!:e.Item1.StartsWith("bank-")?bankMenu!:e.Item1.StartsWith("request-")?requestMenu!:menu;
             endpointMenus[e.Item1]=targetMenu.GUID;
             if(!await db.MenuApi.AnyAsync(m=>m.MenuGUID==targetMenu.GUID&&m.ApiGUID==api.GUID,ct))
             {db.MenuApi.Add(new MenuApi{MenuGUID=targetMenu.GUID,ApiGUID=api.GUID});await db.SaveChangesAsync(ct);}
@@ -256,6 +331,7 @@ public static class HemoDemoSeed
         }
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
+        if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);
         await tx.CommitAsync(ct);
     }
 }

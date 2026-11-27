@@ -91,3 +91,10 @@
 - دستور مالک: هیچ اصلاح عمومی در زیرساخت انجام نشود؛ [تصمیم محدوده](HEMO_ASD_SCOPE_OVERRIDE_FA.md).
 - افزودن Patient، PatientAdmission و PatientAdmissionReview با AuditedEntity و GUID، سه سرویس BaseRepository، EF configurations، DbSet و SQL migration. شناسه بیمار در مرکز جاری یکتا است؛ HISNumber نیز در همان مرکز یکتا است؛ rowversion پذیرش جهت کنترل تغییر همزمان. هیچ رفتار موجود بازنویسی نشد.
 - Migration و snapshot دستی تهیه شده‌اند، نیازمند validation واقعی EF؛ Build/Migration/Tests: NOT RUN.
+
+### ST-02 | Backend API
+
+- افزودن Command ثبت پذیرش و Validator، Query صفحه‌بندی/جستجو/سوابق/آمار، Command ویرایش اطلاعات بستری، بررسی هویت/سوابق/آمادگی ترخیص و تاریخچه بررسی، concurrency، EndpointGroup در مسیر `/Identity/PatientAdmission`.
+- استفاده از UserRoleService/AuthService و RoleAccess موجود برای scope مرکز؛ برای نقش غیر ادمین منوی `/admission` لازم است. محدودیت فقط به endpointهای جدید مربوط است.
+- HIS/IBTO و تزریق واقعی خارج از قرارداد موجود است؛ تأیید سوابق دستی و آمادگی ترخیص جایگزین ترخیص واقعی نیست.
+- Test/Build/Migration: NOT RUN؛ کد هنوز نیازمند CI و آزمون DB است.

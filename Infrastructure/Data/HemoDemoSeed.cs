@@ -190,10 +190,11 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
+        var includeDashboardPages=config.GetValue<bool>("HemoSeed:IncludeDashboardPages");
         var includeDashboardSamples=config.GetValue<bool>("HemoSeed:IncludeDashboardSamples");
         var includeDeliverySamples=includeDashboardSamples||config.GetValue<bool>("HemoSeed:IncludeDeliverySamples");
         var includeQualitySamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeQualitySamples");
-        var includeQuality=includeQualitySamples||config.GetValue<bool>("HemoSeed:IncludeQuality");
+        var includeQuality=includeDashboardPages||includeQualitySamples||config.GetValue<bool>("HemoSeed:IncludeQuality");
         var includeHvSamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilanceSamples");
         var includeHv=includeQuality||includeHvSamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilance");
         var includeSamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeTransfusionSamples");
@@ -201,7 +202,7 @@ public static class HemoDemoSeed
         var includeBank=includeTransfusion||config.GetValue<bool>("HemoSeed:IncludeBloodBank");
         var includeRequests=includeBank||config.GetValue<bool>("HemoSeed:IncludeBloodRequests");
         var accounts=DemoAccounts(includeRequests,includeBank,includeTransfusion,includeHv,includeQuality);
-        if(includeDashboardSamples)accounts=[..accounts,DashboardManager];
+        if(includeDashboardSamples||includeDashboardPages)accounts=[..accounts,DashboardManager];
         var pending=new Dictionary<string,string>();
         foreach(var account in accounts)
         {
@@ -361,6 +362,7 @@ public static class HemoDemoSeed
         if(includeQuality&&(includeEquipmentOperations||config.GetValue<bool>("HemoSeed:IncludeQualityReadPages")))
             await HemoQualityReadRouteSeed.ApplyAsync(db,qualityMenu!,apis,accounts,ct,includeEquipmentOperations,includeQualityOperations);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);
+        if(includeDashboardPages)await HemoDashboardRouteSeed.ApplyAsync(db,apis,endpointMenus,accounts,ct);
         if(includeDashboardSamples)await HemoDashboardSampleSeed.ApplyAsync(db,org.GUID,ct);
         await tx.CommitAsync(ct);
     }

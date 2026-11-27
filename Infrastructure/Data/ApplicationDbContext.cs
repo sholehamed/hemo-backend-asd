@@ -48,6 +48,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<ShoppingCartProduct> ShoppingCartProduct { get; set; }
     public DbSet<MenuApi> MenuApi { get; set; }
 
+    public DbSet<Patient> Patient { get; set; }
+    public DbSet<PatientAdmission> PatientAdmission { get; set; }
+    public DbSet<PatientAdmissionReview> PatientAdmissionReview { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

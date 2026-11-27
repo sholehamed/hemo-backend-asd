@@ -16,6 +16,10 @@ public record UserLoginCommand : IRequest<Token>, IMapFrom<User>
 
     [PropConfig("OtpCode")] public string? OtpCode { get; init; }
 
+    // Server-selected HEMO login context; not bindable from the public login JSON.
+    internal bool IsHemoLogin { get; private set; }
+    public UserLoginCommand ForHemo() => this with { IsHemoLogin = true };
+
     public void Mapping(Profile profile)
     {
         profile.CreateMap<UserLoginCommand, User>();
@@ -51,6 +55,7 @@ public class UserLoginCommandHandler : IRequestHandler<UserLoginCommand, Token>
         var user = UserService.db.User
             .FirstOrDefault(a => a.Username.ToLower() == username);
 
+        if (request.IsHemoLogin && user == null) throw new ServiceExeption(errorMessage);
         await UserService.CheckUserLoginAccess(user);
 
         if (user == null || !PasswordIsValid(user, request.Password))
@@ -128,12 +133,12 @@ public class UserLoginCommandHandler : IRequestHandler<UserLoginCommand, Token>
 
             await UserService.OnSuccessLogin(user.GUID);
 
-            return await UserService.GetToken(user, null);
+            return request.IsHemoLogin ? await HemoLoginContext.IssueAsync(UserService, user, cancellationToken) : await UserService.GetToken(user, null);
         }
         else
         {
             await UserService.OnSuccessLogin(user.GUID);
-            return await UserService.GetToken(user, null);
+            return request.IsHemoLogin ? await HemoLoginContext.IssueAsync(UserService, user, cancellationToken) : await UserService.GetToken(user, null);
         }
     }
 

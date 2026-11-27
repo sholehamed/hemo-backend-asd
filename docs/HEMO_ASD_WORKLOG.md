@@ -85,3 +85,9 @@
 - CI: **NOT CONFIGURED** در snapshot فعلی
 
 > این مرحله فقط تحلیل ایستای GitHub و ایجاد مستندات است؛ هیچ فرآیند بالینی یا endpoint جدیدی هنوز عملیاتی نشده است.
+
+## 2026-11-27 — ST-02 | Data model
+
+- دستور مالک: هیچ اصلاح عمومی در زیرساخت انجام نشود؛ [تصمیم محدوده](HEMO_ASD_SCOPE_OVERRIDE_FA.md).
+- افزودن Patient، PatientAdmission و PatientAdmissionReview با AuditedEntity و GUID، سه سرویس BaseRepository، EF configurations، DbSet و SQL migration. شناسه بیمار در مرکز جاری یکتا است؛ HISNumber نیز در همان مرکز یکتا است؛ rowversion پذیرش جهت کنترل تغییر همزمان. هیچ رفتار موجود بازنویسی نشد.
+- Migration و snapshot دستی تهیه شده‌اند، نیازمند validation واقعی EF؛ Build/Migration/Tests: NOT RUN.

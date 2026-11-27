@@ -35,6 +35,10 @@ public interface  IApplicationDbContext
      public  DbSet<Whitelisting> Whitelisting { get; set;}
 
     
+    public DbSet<Patient> Patient { get; set; }
+    public DbSet<PatientAdmission> PatientAdmission { get; set; }
+    public DbSet<PatientAdmissionReview> PatientAdmissionReview { get; set; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
 

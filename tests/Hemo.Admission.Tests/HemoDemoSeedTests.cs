@@ -893,6 +893,35 @@ public class HemoDemoSeedTests
             var count=await db.RoleAccess.CountAsync(ct);var mappings=await db.MenuApi.CountAsync(ct);
             await HemoDemoSeed.ApplyAsync(db,cfg,ct);
             Assert.Equal(count,await db.RoleAccess.CountAsync(ct));Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));Assert.Equal(users,await db.User.CountAsync(ct));
+            var opCfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeQuality"]="true",["HemoSeed:IncludeEquipmentOperationPages"]="true"
+            }).Build();
+            var detailRoute=Assert.Single(HemoQualityReadRouteSeed.EquipmentOperationRoutes);
+            Assert.False(await db.Menu.AnyAsync(m=>m.routerLink==detailRoute.Path,ct));
+            await HemoDemoSeed.ApplyAsync(db,opCfg,ct);db.ChangeTracker.Clear();
+            var detailMenu=await db.Menu.SingleAsync(m=>m.routerLink==detailRoute.Path,ct);
+            Assert.False(detailMenu.IsPublic);Assert.False(detailMenu.ShowInMenu);Assert.Equal(root.GUID,detailMenu.PMenuGUID);
+            Assert.True(before.SetEquals(await db.RoleAccess.Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)));
+            var expectedDetail=new HashSet<(Guid,Guid?)>();
+            foreach(var account in accounts.Where(a=>HemoQualityReadRouteSeed.CanOpen(detailRoute,a.Permissions)))
+            {
+                var roleId=roles.Single(r=>r.ConvertID=="HEMO-DEMO-ST02:"+account.Key).GUID;
+                foreach(var key in detailRoute.Mapped.Where(k=>account.Permissions.Contains(k)))
+                {
+                    var endpoint=HemoDemoSeed.QualityEndpoints.Single(e=>e.Key==key);
+                    var mappedApi=await db.Api.SingleAsync(a=>a.APITypeName==endpoint.Method&&a.DownstreamPathTemplate==endpoint.Path,ct);
+                    expectedDetail.Add((roleId,mappedApi.GUID));
+                }
+            }
+            var actualDetail=await db.RoleAccess.Where(r=>r.MenuGUID==detailMenu.GUID).ToListAsync(ct);
+            Assert.True(expectedDetail.SetEquals(actualDetail.Select(g=>(g.RoleGUID,g.ApiGUID))));
+            var listMenu=await db.Menu.SingleAsync(m=>m.routerLink=="/hemo/quality/equipment",ct);
+            var createApi=await db.Api.SingleAsync(a=>a.APITypeName=="post"&&a.DownstreamPathTemplate=="/Identity/HemoQuality/EquipmentCreate",ct);
+            var techRole=roles.Single(r=>r.ConvertID=="HEMO-DEMO-ST02:EquipmentTech");
+            Assert.Equal(techRole.GUID,Assert.Single(await db.RoleAccess.Where(r=>r.MenuGUID==listMenu.GUID&&r.ApiGUID==createApi.GUID).ToListAsync(ct)).RoleGUID);
+            var opCount=await db.RoleAccess.CountAsync(ct);var opMappings=await db.MenuApi.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,opCfg,ct);
+            Assert.Equal(opCount,await db.RoleAccess.CountAsync(ct));Assert.Equal(opMappings,await db.MenuApi.CountAsync(ct));Assert.Equal(users,await db.User.CountAsync(ct));
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
     }
@@ -909,5 +938,21 @@ public class HemoDemoSeedTests
         Assert.Equal(4,routes.Count(r=>HemoQualityReadRouteSeed.CanOpen(r,officer)));
         Assert.Single(routes.Where(r=>HemoQualityReadRouteSeed.CanOpen(r,HemoDemoSeed.DashboardManager.Permissions)));
         Assert.All(routes,r=>Assert.Single(r.Mapped));
+    }
+
+    [Fact]
+    public void EquipmentOperationRoutePreservesTechnicalSeparation()
+    {
+        var route=Assert.Single(HemoQualityReadRouteSeed.EquipmentOperationRoutes);
+        var tech=HemoDemoSeed.QualityAccounts.Single(a=>a.Key=="EquipmentTech").Permissions;
+        var reviewer=HemoDemoSeed.QualityAccounts.Single(a=>a.Key=="EquipmentReviewer").Permissions;
+        Assert.True(HemoQualityReadRouteSeed.CanOpen(route,tech));
+        Assert.True(HemoQualityReadRouteSeed.CanOpen(route,reviewer));
+        Assert.False(HemoQualityReadRouteSeed.CanOpen(route,HemoDemoSeed.DashboardManager.Permissions));
+        Assert.False(route.Visible);
+        Assert.Contains("quality-equipment-release",route.Mapped);
+        Assert.DoesNotContain("quality-equipment-release",tech);
+        Assert.DoesNotContain("quality-equipment-service",reviewer);
+        Assert.DoesNotContain("quality-equipment-create",route.Mapped);
     }
 }

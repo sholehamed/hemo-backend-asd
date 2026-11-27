@@ -17,6 +17,10 @@ public static class HemoQualityReadRouteSeed
         new("/hemo/quality/audit","ممیزی و ارزیابی","pi pi-file","quality-audit-list",["quality-audit-list"]),
         new("/hemo/quality/training","آموزش کارکنان","pi pi-book","quality-training-list",["quality-training-list"])
     ];
+    public static readonly Route[] EquipmentOperationRoutes=[
+        new("/hemo/quality/equipment/:guid","جزئیات و عملیات فنی تجهیز","pi pi-file","quality-equipment-detail",
+            ["quality-equipment-detail","quality-equipment-edit","quality-equipment-service","quality-equipment-hold","quality-equipment-release","quality-equipment-archive","quality-equipment-temperature","quality-incident-report","quality-incident-resolve"],null,false)
+    ];
     public static bool CanOpen(Route route,IEnumerable<string> keys)
     {
         var allowed=keys.ToHashSet(StringComparer.Ordinal);
@@ -24,7 +28,7 @@ public static class HemoQualityReadRouteSeed
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Menu original,IReadOnlyDictionary<string,Guid> apis,
-        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct)
+        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeEquipmentOperations=false)
     {
         const string rootMarker="HEMO-R02-COMPANY-MENU";
         var root=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
@@ -54,7 +58,7 @@ public static class HemoQualityReadRouteSeed
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(k=>apis.TryGetValue(k,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in Routes)
+        foreach(var route in Routes.Select(r=>includeEquipmentOperations&&r.Path=="/hemo/quality/equipment"?r with{Mapped=[..r.Mapped,"quality-equipment-create"]}:r).Concat(includeEquipmentOperations?EquipmentOperationRoutes:Array.Empty<Route>()))
         {
             var marker="HEMO-R02-QUALITY:"+route.Path;
             var leaf=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);

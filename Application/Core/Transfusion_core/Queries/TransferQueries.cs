@@ -54,7 +54,7 @@ public class TransferQueryHandler(BloodTransferService transfers,UserRoleService
     public async Task<TransferCapabilities> Handle(TransferCapabilitiesQuery f,CancellationToken ct)
     {
         var u=await AdmissionScope.GetAssignmentAsync(roles,auth,ct);Task<bool> Can(string p,string method="post")=>TransferAccess.Can(roles,u,method,"/"+p,ct);
-        return new(await Can("List"),await Can("Detail/{guid}","get"),await Can("Stats"),await Can("Candidates"),await Can("Dispatch"),await Can("Receive"),await Can("Verify"),await Can("Witness"),await Can("Start"),await Can("Vital"),await Can("Complete"),await Can("Stop"),await Can("Return"),await Can("AcceptReturn"),await Can("Dispose"),await Can("DoctorNote"),u.UserGuid);
+        return new(await Can("List"),await Can("Detail/{guid}","get"),await Can("Stats"),await Can("Candidates"),await Can("Dispatch"),await Can("Receive"),await Can("ReceiptHold"),await Can("Verify"),await Can("Witness"),await Can("Start"),await Can("Vital"),await Can("Complete"),await Can("Stop"),await Can("Return"),await Can("AcceptReturn"),await Can("Dispose"),await Can("DoctorNote"),u.UserGuid);
     }
     public async Task<TransferStats> Handle(TransferStatsQuery f,CancellationToken ct)
     {

@@ -82,20 +82,20 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
     {
         var action=cmd.Action;
         if(!new[]{"Receive","ReceiptHold","Verify","Witness","Start","Complete","Stop","Return","AcceptReturn","Dispose","DoctorNote"}.Contains(action))throw Error("عملیات نامعتبر است.");
-        var actor=await TransferAccess.Require(roles,auth,"post",action=="ReceiptHold"?"/Receive":"/"+action,ct);var v=cmd.Input;Validate(new TransferActionValidator(),v);
+        var actor=await TransferAccess.Require(roles,auth,"post","/"+action,ct);var v=cmd.Input;Validate(new TransferActionValidator(),v);
         await Atomic(async()=>{
             var t=await Load(v.Guid,actor,ct);Check(t.Version,v.Version);var before=t.Status;var now=DateTime.UtcNow;
             var next=action=="DoctorNote"?before:TransferRules.Next(before,action)??throw Error("عملیات در وضعیت فعلی مجاز نیست.");
             if(action is "Receive" or "Verify" or "Witness" or "Start")await RequireCurrent(t,actor,ct);
             if(action is "Receive" or "Verify" or "Witness" or "Start")Codes(v,t);
-            if(action is "ReceiptHold" or "Return" or "AcceptReturn" or "Dispose")UnitCode(v,t);
+            if(action is "Return" or "AcceptReturn" or "Dispose")UnitCode(v,t);
             switch(action)
             {
                 case "Receive":
                     if(v.Temperature==null||v.Condition!="Acceptable"||string.IsNullOrWhiteSpace(v.ReceiverName))throw Error("شرایط و نام تحویل‌گیرنده را ثبت کنید.");
                     t.ReceivedAt=now;t.ReceivedBy=actor.UserGuid;break;
                 case "ReceiptHold":
-                    if(string.IsNullOrWhiteSpace(v.ReceiverName)||string.IsNullOrWhiteSpace(v.Condition)||v.Condition=="Acceptable")throw Error("نام تحویل‌گیرنده و دلیل مغایرت را ثبت کنید.");
+                    if(string.IsNullOrWhiteSpace(v.UnitCode)||string.IsNullOrWhiteSpace(v.ReceiverName)||string.IsNullOrWhiteSpace(v.Condition)||v.Condition=="Acceptable")throw Error("نام تحویل‌گیرنده و دلیل مغایرت را ثبت کنید.");
                     t.ReceivedAt=now;t.ReceivedBy=actor.UserGuid;break;
                 case "Verify":
                     t.VerifiedAt=now;t.VerifiedBy=actor.UserGuid;t.WitnessedAt=null;t.WitnessedBy=null;break;
@@ -103,7 +103,7 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
                     if(!TransferRules.DistinctWitness(t.VerifiedBy,actor.UserGuid))throw Error("شاهد باید با حساب مستقل وارد شود.");
                     t.WitnessedAt=now;t.WitnessedBy=actor.UserGuid;break;
                 case "Start":
-                    if(t.VerifiedBy!=actor.UserGuid||!TransferRules.DistinctWitness(t.VerifiedBy,t.WitnessedBy??Guid.Empty)||!t.VerifiedAt.HasValue||
+                    if(t.SuspectedReaction||t.VerifiedBy!=actor.UserGuid||!TransferRules.DistinctWitness(t.VerifiedBy,t.WitnessedBy??Guid.Empty)||!t.VerifiedAt.HasValue||
                         !await Db.BloodTransferVital.AnyAsync(x=>x.BloodTransferGUID==t.GUID&&x.Phase=="T0"&&x.MeasuredAt>=t.VerifiedAt.Value,ct)||
                         string.IsNullOrWhiteSpace(v.NeedleReference))throw Error("تطبیق دو حساب، پایش اولیه بعد از تطبیق و ثبت مشخصات وسیله لازم است.");
                     t.StartedAt=now;t.StartedBy=actor.UserGuid;break;

@@ -45,8 +45,41 @@ public static class HemoDemoSeed
         ("tx-vital","post","/Identity/Transfusion/Vital"),("tx-complete","post","/Identity/Transfusion/Complete"),("tx-stop","post","/Identity/Transfusion/Stop"),
         ("tx-return","post","/Identity/Transfusion/Return"),("tx-accept-return","post","/Identity/Transfusion/AcceptReturn"),("tx-dispose","post","/Identity/Transfusion/Dispose"),("tx-doctor-note","post","/Identity/Transfusion/DoctorNote")
     ];
-    public static Account[] DemoAccounts(bool includeRequests,bool includeBank,bool includeTransfusion=false)
+    public static readonly string[] HvReadKeys=["hv-list","hv-detail","hv-stats"];
+    public static readonly Account HvOfficer=new("HvOfficer","hemo.hv.officer","HEMO | مسئول هموویژیلانس","هموویژیلانس",[..HvReadKeys,"hv-candidates","hv-report","hv-observe","hv-investigate","hv-return","hv-rca","hv-assign","hv-owners","hv-external","hv-reports","hv-report-detail","hv-archive","hv-report-external"]);
+    public static readonly Account HvReviewer=new("HvReviewer","hemo.hv.reviewer","HEMO | بازبین مستقل هموویژیلانس","بازبین مستقل",[..HvReadKeys,"hv-verify","hv-close","hv-reports","hv-report-detail"]);
+    public static readonly (string Key,string Method,string Path)[] HvEndpoints=[
+        ("hv-list","post","/Identity/Hemovigilance/List"),
+        ("hv-detail","get","/Identity/Hemovigilance/Detail/{guid}"),
+        ("hv-stats","post","/Identity/Hemovigilance/Stats"),
+        ("hv-candidates","post","/Identity/Hemovigilance/Candidates"),
+        ("hv-report","post","/Identity/Hemovigilance/Report"),
+        ("hv-observe","post","/Identity/Hemovigilance/Observe"),
+        ("hv-doctor","post","/Identity/Hemovigilance/DoctorReview"),
+        ("hv-bank","post","/Identity/Hemovigilance/BankReview"),
+        ("hv-investigate","post","/Identity/Hemovigilance/Investigate"),
+        ("hv-return","post","/Identity/Hemovigilance/ReturnToDoctor"),
+        ("hv-rca","post","/Identity/Hemovigilance/PublishRca"),
+        ("hv-assign","post","/Identity/Hemovigilance/AssignCapa"),
+        ("hv-owners","get","/Identity/Hemovigilance/Owners"),
+        ("hv-progress","post","/Identity/Hemovigilance/CapaProgress"),
+        ("hv-verify","post","/Identity/Hemovigilance/CapaVerify"),
+        ("hv-close","post","/Identity/Hemovigilance/Close"),
+        ("hv-external","post","/Identity/Hemovigilance/External"),
+        ("hv-reports","post","/Identity/Hemovigilance/Reports"),
+        ("hv-report-detail","get","/Identity/Hemovigilance/ReportDetail/{guid}"),
+        ("hv-archive","post","/Identity/Hemovigilance/Archive"),
+        ("hv-report-external","post","/Identity/Hemovigilance/ReportExternal")
+    ];
+    public static Account[] DemoAccounts(bool includeRequests,bool includeBank,bool includeTransfusion=false,bool includeHv=false)
     {
+        if(includeHv)return DemoAccounts(true,true,true).Select(a=>a.Key switch
+        {
+            "Nurse"=>a with{Permissions=[..a.Permissions,..HvReadKeys,"hv-candidates","hv-report","hv-observe","hv-progress"]},
+            "Doctor"=>a with{Permissions=[..a.Permissions,..HvReadKeys,"hv-doctor","hv-observe","hv-progress"]},
+            "BloodBank" or "BankSupervisor"=>a with{Permissions=[..a.Permissions,..HvReadKeys,"hv-bank","hv-observe","hv-progress"]},
+            _=>a
+        }).Append(HvOfficer).Append(HvReviewer).ToArray();
         if(includeTransfusion)return DemoAccounts(true,true).Select(a=>a.Key switch
         {
             "Nurse"=>a with{Permissions=[..a.Permissions,..TransferNurseKeys]},
@@ -88,11 +121,13 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
+        var includeHvSamples=config.GetValue<bool>("HemoSeed:IncludeHemovigilanceSamples");
+        var includeHv=includeHvSamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilance");
         var includeSamples=config.GetValue<bool>("HemoSeed:IncludeTransfusionSamples");
-        var includeTransfusion=includeSamples||config.GetValue<bool>("HemoSeed:IncludeTransfusion");
+        var includeTransfusion=includeHv||includeSamples||config.GetValue<bool>("HemoSeed:IncludeTransfusion");
         var includeBank=includeTransfusion||config.GetValue<bool>("HemoSeed:IncludeBloodBank");
         var includeRequests=includeBank||config.GetValue<bool>("HemoSeed:IncludeBloodRequests");
-        var accounts=DemoAccounts(includeRequests,includeBank,includeTransfusion);
+        var accounts=DemoAccounts(includeRequests,includeBank,includeTransfusion,includeHv);
         var pending=new Dictionary<string,string>();
         foreach(var account in accounts)
         {
@@ -168,9 +203,15 @@ public static class HemoDemoSeed
             transferMenu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/hemo/transfusion",ct);
             if(transferMenu==null){transferMenu=new Menu{label="تحویل و پایش تزریق",routerLink="/hemo/transfusion",icon="pi pi-heart",ShowInMenu=true,Gorder=4,IsPublic=false};db.Menu.Add(transferMenu);await db.SaveChangesAsync(ct);}
         }
+        Menu? hvMenu=null;
+        if(includeHv)
+        {
+            hvMenu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/hemo/hv",ct);
+            if(hvMenu==null){hvMenu=new Menu{label="واکنش و هموویژیلانس",routerLink="/hemo/hv",icon="pi pi-shield",ShowInMenu=true,Gorder=5,IsPublic=false};db.Menu.Add(hvMenu);await db.SaveChangesAsync(ct);}
+        }
         var apis=new Dictionary<string,Guid>();
         var endpointMenus=new Dictionary<string,Guid>();
-        foreach(var e in (includeRequests?Endpoints.Concat(BloodRequestEndpoints):Endpoints).Concat(includeBank?BankEndpoints:Array.Empty<(string,string,string)>()).Concat(includeTransfusion?TransferEndpoints:Array.Empty<(string,string,string)>()).Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
+        foreach(var e in (includeRequests?Endpoints.Concat(BloodRequestEndpoints):Endpoints).Concat(includeBank?BankEndpoints:Array.Empty<(string,string,string)>()).Concat(includeTransfusion?TransferEndpoints:Array.Empty<(string,string,string)>()).Concat(includeHv?HvEndpoints:Array.Empty<(string,string,string)>()).Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
         {
             var api=await db.Api.FirstOrDefaultAsync(a=>a.SubSystemGUID==subsystem.GUID && a.APITypeName==e.Item2 && a.DownstreamPathTemplate==e.Item3,ct);
             if(api==null)
@@ -181,7 +222,7 @@ public static class HemoDemoSeed
             if(!api.Active)throw new InvalidOperationException("HEMO API is inactive: "+e.Item3);
             apis[e.Item1]=api.GUID;
             if(e.Item1 is "login" or "hemo-login")continue;
-            var targetMenu=e.Item1.StartsWith("tx-")?transferMenu!:e.Item1.StartsWith("bank-")?bankMenu!:e.Item1.StartsWith("request-")?requestMenu!:menu;
+            var targetMenu=e.Item1.StartsWith("hv-")?hvMenu!:e.Item1.StartsWith("tx-")?transferMenu!:e.Item1.StartsWith("bank-")?bankMenu!:e.Item1.StartsWith("request-")?requestMenu!:menu;
             endpointMenus[e.Item1]=targetMenu.GUID;
             if(!await db.MenuApi.AnyAsync(m=>m.MenuGUID==targetMenu.GUID&&m.ApiGUID==api.GUID,ct))
             {db.MenuApi.Add(new MenuApi{MenuGUID=targetMenu.GUID,ApiGUID=api.GUID});await db.SaveChangesAsync(ct);}
@@ -214,6 +255,7 @@ public static class HemoDemoSeed
             }
         }
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
+        if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         await tx.CommitAsync(ct);
     }
 }

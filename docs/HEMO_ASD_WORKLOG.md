@@ -177,3 +177,6 @@
 - CI 46029143184: build/90 unit/6 regression SQL green; new SQL workflow exposed EF translation of record constructor + Distinct/OrderBy in eligible CAPA owners. SQL projection to anonymous columns, then DTO mapping. Re-run without weakening authorization or deleting test.
 
 - CI 46029839717: 90 غیر SQL و 7 SQL سبز. در بازبینی نهایی RcaQueue، فیلتر CAPA مسئول اجرا و استقلال بستن نسبت به بررسی‌کننده، رویداد ST05 نمونه‌ها و آزمون دو ثبت همزمان با DbContext مستقل و مسیر عدم نیاز RCA اضافه شد. CI مجدد.
+
+## ST-07 | ST07-01 مدل داده
+- تحلیل ۱۲ صفحه Raw تجهیزات/مدیریت کیفیت، طرح تقسیم‌بندی، ۷ موجودیت شناسنامه، رویداد، حادثه، پرونده/ردیف/رویداد کیفیت و اطلاعات مرکز، Migration و DbSet/Repository. گردش‌ها و رابط هنوز در حال پیاده‌سازی هستند.

@@ -18,14 +18,15 @@ public static class HemoAdmissionRouteSeed
         new("/admission/his","همگام‌سازی HIS","pi pi-sync",true,["list"],[]),
         new("/admission/stats","گزارش‌های پذیرش","pi pi-chart-bar",true,["stats"],[])
     ];
+    public static readonly Route DashboardRoute=new("/admission/dashboard","داشبورد پذیرش","pi pi-chart-pie",true,[],["stats","list","detail","create","find","reviews","history"]);
     public static bool CanOpen(Route route,IEnumerable<string> permissionKeys)
     {
         var allowed=permissionKeys.ToHashSet(StringComparer.Ordinal);
-        return route.Required.All(allowed.Contains);
+        return route.Path==DashboardRoute.Path?allowed.Contains("stats")||allowed.Contains("list"):route.Required.All(allowed.Contains);
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Guid admissionMenuGuid,
-        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeCompanyMenuPilot=false,bool includeReadPages=false)
+        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeCompanyMenuPilot=false,bool includeReadPages=false,bool includeCompletePages=false)
     {
         const string prefix="HEMO-R02-ADMISSION:";
         var existingAdmission=await db.Menu.SingleAsync(m=>m.GUID==admissionMenuGuid,ct);
@@ -33,6 +34,7 @@ public static class HemoAdmissionRouteSeed
         // Read pages require a separate opt-in for deployments on the earlier frontend.
         var companyRoot=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
         const string rootMarker="HEMO-R02-COMPANY-MENU";
+        includeReadPages |= includeCompletePages;
         includeCompanyMenuPilot |= includeReadPages;
         if(includeCompanyMenuPilot)
         {
@@ -53,14 +55,17 @@ public static class HemoAdmissionRouteSeed
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(key=>apis.TryGetValue(key,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in Routes)
+        // The original /admission menu is not seed-marked; never move it.
+        // The separate dashboard alias is added only by the complete opt-in.
+        var dashboardExists=await db.Menu.AnyAsync(m=>m.routerLink==DashboardRoute.Path&&m.ConvertID==prefix+DashboardRoute.Path,ct);
+        var routes=includeCompletePages||dashboardExists?Routes.Append(DashboardRoute):Routes.AsEnumerable();
+        foreach(var route in routes)
         {
             var marker=prefix+route.Path;
             var menu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);
-            var active=route.Path=="/admission/stats"&&includeCompanyMenuPilot||
+            var active=includeCompletePages||route.Path=="/admission/stats"&&includeCompanyMenuPilot||
                 includeReadPages&&(route.Path=="/admission/list"||route.Path=="/admission/his");
-            var previouslyAttached=ownedRoot!=null&&menu?.PMenuGUID==ownedRoot.GUID&&
-                (route.Path=="/admission/stats"||route.Path=="/admission/list"||route.Path=="/admission/his");
+            var previouslyAttached=ownedRoot!=null&&menu?.PMenuGUID==ownedRoot.GUID;
             var parent=ownedRoot!=null&&(active||previouslyAttached)?ownedRoot.GUID:existingAdmission.PMenuGUID;
             if(menu==null)
             {

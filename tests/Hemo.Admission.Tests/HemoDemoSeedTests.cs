@@ -83,6 +83,10 @@ public class HemoDemoSeedTests
         }
         var manager=HemoDemoSeed.DashboardManager.Permissions;
         Assert.Equal("/admission/stats",Assert.Single(HemoAdmissionRouteSeed.Routes.Where(r=>HemoAdmissionRouteSeed.CanOpen(r,manager))).Path);
+        Assert.True(HemoAdmissionRouteSeed.CanOpen(HemoAdmissionRouteSeed.DashboardRoute,manager));
+        Assert.True(HemoAdmissionRouteSeed.CanOpen(HemoAdmissionRouteSeed.DashboardRoute,new[]{"list"}));
+        Assert.False(HemoAdmissionRouteSeed.CanOpen(HemoAdmissionRouteSeed.DashboardRoute,new[]{"detail"}));
+        Assert.False(HemoAdmissionRouteSeed.CanOpen(HemoAdmissionRouteSeed.DashboardRoute,Array.Empty<string>()));
         var viewer=HemoDemoSeed.Accounts.Single(a=>a.Key=="Viewer").Permissions;
         Assert.DoesNotContain(HemoAdmissionRouteSeed.Routes.Where(r=>HemoAdmissionRouteSeed.CanOpen(r,viewer)),r=>r.Path=="/admission/new");
     }
@@ -209,6 +213,35 @@ public class HemoDemoSeedTests
             await HemoDemoSeed.ApplyAsync(db,cfg,ct);
             Assert.Equal(3,await db.Menu.CountAsync(m=>m.PMenuGUID==root.GUID,ct));
             Assert.True(grants.SetEquals(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.MenuGUID,r.ApiGUID}).ToListAsync(ct)));
+
+            var original=await db.Menu.SingleAsync(m=>m.routerLink=="/admission",ct);
+            var originalId=original.GUID;var originalParent=original.PMenuGUID;
+            var originalPaths=HemoAdmissionRouteSeed.Routes.Select(r=>r.Path).ToArray();
+            var oldIds=(await db.Menu.Where(m=>originalPaths.Contains(m.routerLink)).Select(m=>m.GUID).ToListAsync(ct)).ToHashSet();
+            var endpointGrants=(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)).ToHashSet();
+            var completeCfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeAdmissionCompletePages"]="true"
+            }).Build();
+            await HemoDemoSeed.ApplyAsync(db,completeCfg,ct);
+            db.ChangeTracker.Clear();
+            var children=await db.Menu.Where(m=>m.PMenuGUID==root.GUID).ToListAsync(ct);
+            Assert.Equal(9,children.Count);
+            Assert.Equal(8,children.Count(m=>m.ShowInMenu));
+            Assert.True(oldIds.SetEquals(children.Where(m=>originalPaths.Contains(m.routerLink)).Select(m=>m.GUID)));
+            Assert.All(children,m=>{Assert.False(m.IsPublic);Assert.Equal(root.Path+m.Gkey+"/",m.Path);});
+            Assert.Equal(originalParent,(await db.Menu.SingleAsync(m=>m.GUID==originalId,ct)).PMenuGUID);
+            var dashboard=Assert.Single(children.Where(m=>m.routerLink=="/admission/dashboard"));
+            Assert.True(await db.RoleAccess.AnyAsync(r=>r.RoleGUID==nurse.GUID&&r.MenuGUID==dashboard.GUID,ct));
+            var statsApiIds=await db.MenuApi.Where(m=>m.MenuGUID==statsId).Select(m=>m.ApiGUID).ToListAsync(ct);
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.RoleGUID==nurse.GUID&&r.MenuGUID==dashboard.GUID&&r.ApiGUID.HasValue&&statsApiIds.Contains(r.ApiGUID.Value),ct));
+            Assert.True(grants.SetEquals(await db.RoleAccess.Where(r=>r.MenuGUID!=dashboard.GUID).Select(r=>new {r.RoleGUID,r.MenuGUID,r.ApiGUID}).ToListAsync(ct)));
+            Assert.True(endpointGrants.SetEquals(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)));
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.MenuGUID==dashboard.GUID&&r.ApiGUID==null,ct));
+            var completeGrantCount=await db.RoleAccess.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,completeCfg,ct);
+            await HemoDemoSeed.ApplyAsync(db,readCfg,ct);
+            Assert.Equal(9,await db.Menu.CountAsync(m=>m.PMenuGUID==root.GUID,ct));
+            Assert.Equal(completeGrantCount,await db.RoleAccess.CountAsync(ct));
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
     }

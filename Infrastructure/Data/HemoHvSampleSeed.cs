@@ -73,6 +73,7 @@ internal static class HemoHvSampleSeed
                 db.HemoReaction.Add(hv);
                 void E(string action,string previous,string next,UserRole actor,int minute){db.HemoReactionEvent.Add(Mark(new HemoReactionEvent{HemoReactionGUID=hv.GUID,ActorUserGUID=actor.UserGUID,ActorRoleGUID=actor.RoleGUID,Action=action,PreviousStatus=previous,NewStatus=next,OccurredAt=now.AddMinutes(minute),Notes=Note},"hvevent:"+f.Key+":"+action,actor.UserGUID,now));}
                 E("Report","","Reported",nurse,9);
+                db.BloodTransferEvent.Add(Mark(new BloodTransferEvent{BloodTransferGUID=t.GUID,ActorUserGUID=nurse.UserGUID,ActorRoleGUID=nurse.RoleGUID,Action="ReactionReport",PreviousStatus=t.Status,NewStatus=t.Status,OccurredAt=now.AddMinutes(9),Notes=Note,EvidenceJson=JsonSerializer.Serialize(new{ReactionGuid=hv.GUID})},"txreaction:"+f.Key,nurse.UserGUID,now));
                 if(f.Key is "03" or "04")
                 {
                     hv.Status="BankReviewed";hv.DoctorUserGUID=doctor.UserGUID;hv.DoctorReviewedAt=now.AddMinutes(10);hv.DiagnosisCode="Undetermined";hv.Severity="Unknown";hv.Imputability="Unknown";hv.Outcome="Unknown";hv.DoctorNotes=Note;hv.DoctorActions=Note;hv.DoctorReference="DEMO-ONLY";

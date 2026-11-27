@@ -22,7 +22,7 @@ public class HvQueryHandler(HemoReactionService cases,UserRoleService roles,Auth
     private static Expression<Func<HemoReport,HvReportRow>> ReportRow()=>r=>new(r.GUID,r.ReportNumber,r.Title,r.FromAt,r.ToAt,r.Ward,r.ProductCode,r.PreparedAt,r.PreparedBy,r.ExternalStatus,r.ExternalReference,r.Version);
     public async Task<PaginatedList<HvCaseRow>> Handle(HvListQuery f,CancellationToken ct)
     {
-        var a=await HvAccess.Require(roles,auth,"post","/List",ct);var filter=f.Filters??new HvFilters();var q=HvReportQuery.Filter(HvReportQuery.Scope(Db,a.OrgLocationGUID),filter);var page=Math.Clamp(filter.PageNumber,1,100000);var size=Math.Clamp(filter.PageSize,1,100);
+        var a=await HvAccess.Require(roles,auth,"post","/List",ct);var filter=f.Filters??new HvFilters();var q=HvReportQuery.Filter(HvReportQuery.Scope(Db,a.OrgLocationGUID),filter);if(filter.MineCapa)q=q.Where(r=>Db.HemoCapa.Any(x=>x.HemoReactionGUID==r.GUID&&x.OwnerUserGUID==a.UserGuid&&x.Status!="Verified"));var page=Math.Clamp(filter.PageNumber,1,100000);var size=Math.Clamp(filter.PageSize,1,100);
         return new(await q.OrderByDescending(x=>x.OnsetAt).ThenBy(x=>x.GUID).Skip((page-1)*size).Take(size).Select(Row()).ToListAsync(ct),await q.CountAsync(ct),page,size);
     }
     public async Task<HvDetail> Handle(HvDetailQuery f,CancellationToken ct)

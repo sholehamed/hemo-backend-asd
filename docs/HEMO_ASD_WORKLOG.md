@@ -175,3 +175,5 @@
 - آزمون SQL جدید: seed تکراری، منع نقش/مرکز دیگر، گزارش idempotent و منع پرونده باز دوم، نسخه قدیمی، بازگشت پزشک، RCA و CAPA با مالک و بازبین مستقل، رد/ارسال مجدد، الزام مرجع بیرونی، بستن پرونده و snapshot تغییرناپذیر. ST05 نمونه ST06 را نیز آموزشی نشان می‌دهد. CI pending.
 
 - CI 46029143184: build/90 unit/6 regression SQL green; new SQL workflow exposed EF translation of record constructor + Distinct/OrderBy in eligible CAPA owners. SQL projection to anonymous columns, then DTO mapping. Re-run without weakening authorization or deleting test.
+
+- CI 46029839717: 90 غیر SQL و 7 SQL سبز. در بازبینی نهایی RcaQueue، فیلتر CAPA مسئول اجرا و استقلال بستن نسبت به بررسی‌کننده، رویداد ST05 نمونه‌ها و آزمون دو ثبت همزمان با DbContext مستقل و مسیر عدم نیاز RCA اضافه شد. CI مجدد.

@@ -5,7 +5,7 @@ internal static class HvReportQuery
     public static IQueryable<HemoReaction> Filter(IQueryable<HemoReaction> q,HvFilters f)
     {
         if(!string.IsNullOrWhiteSpace(f.Search)){var s=f.Search.Trim();q=q.Where(x=>x.CaseNumber.Contains(s)||x.Transfer.PatientName.Contains(s)||x.Transfer.HisNumber.Contains(s)||x.Transfer.UnitCode.Contains(s));}
-        if(!string.IsNullOrWhiteSpace(f.Status))q=f.Status=="Open"?q.Where(x=>x.Status!="Closed"):q.Where(x=>x.Status==f.Status);
+        if(!string.IsNullOrWhiteSpace(f.Status))q=f.Status=="Open"?q.Where(x=>x.Status!="Closed"):f.Status=="RcaQueue"?q.Where(x=>x.Status=="BankReviewed"||x.Status=="RcaOpen"):q.Where(x=>x.Status==f.Status);
         if(!string.IsNullOrWhiteSpace(f.Ward))q=q.Where(x=>x.Transfer.Ward==f.Ward);
         if(!string.IsNullOrWhiteSpace(f.ProductCode))q=q.Where(x=>x.Transfer.ProductCode==f.ProductCode);
         if(!string.IsNullOrWhiteSpace(f.Severity))q=q.Where(x=>(x.Severity??x.InitialSeverity)==f.Severity);

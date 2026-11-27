@@ -129,6 +129,30 @@ public class HvSqlWorkflowTests
             Assert.Equal(0,(await hq.Handle(new HvReportDetailQuery(report),ct)).Summary.Closed);Assert.Equal(1,(await hq.Handle(new HvStatsQuery(new()),ct)).Closed);
             Actor("hemo.nurse");await Assert.ThrowsAsync<ServiceExeption>(()=>Review(id,"Observe"));
             var later=Assert.Single((await hq.Handle(new HvCandidatesQuery(Search:"DEMO-ST06-01"),ct)).Data);Assert.Equal(c.Guid,later.Guid);
+            var gate=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            async Task<Guid?> Compete()
+            {
+                var context=new DefaultHttpContext();
+                context.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",nurse.UserGUID.ToString()),new Claim("UserRoles",nurse.Gkey.ToString())},"Fixture"));
+                context.Request.Headers["UserRole"]=nurse.Gkey.ToString();
+                var separateAuth=new AuthService(new FixtureContextAccessor{HttpContext=context});
+                var separateOptions=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString).AddInterceptors(new FixtureAudit(separateAuth),new DispatchDomainEventsInterceptor(null!)).Options;
+                await using var separateDb=new ApplicationDbContext(separateOptions,separateAuth);
+                var handler=new HvCommandHandler(new HemoReactionService(separateDb,null!),new UserRoleService(separateDb,null!,separateAuth),separateAuth);
+                await gate.Task;
+                try{return await handler.Handle(new ReportReactionCommand(input with{ClientReportId=Guid.NewGuid(),TransferVersion=later.Version,OnsetAt=DateTimeOffset.UtcNow}),ct);}
+                catch(ServiceExeption){return null;}
+            }
+            var firstTask=Compete();var secondTask=Compete();gate.SetResult(true);
+            var outcomes=await Task.WhenAll(firstTask,secondTask);var next=Assert.Single(outcomes.Where(x=>x.HasValue))!.Value;
+            db.ChangeTracker.Clear();Assert.Equal(1,await db.HemoReaction.CountAsync(x=>x.BloodTransferGUID==c.Guid&&x.Status!="Closed",ct));
+            Assert.Contains((await hq.Handle(new HvListQuery(new(Status:"CapaMonitoring",MineCapa:true)),ct)).Data,x=>x.CaseNumber=="DEMO-HV-04");
+            Actor("hemo.doctor");await Review(next,"DoctorReview",x=>x with{DiagnosisCode="Undetermined",Severity="Unknown",Imputability="Unknown",Outcome="Unknown",Actions="Synthetic action",DoctorReference="DEMO-ONLY"});
+            Actor("hemo.bloodbank");await Review(next,"BankReview",x=>x with{SampleReference="Synthetic sample",ReportReference="Synthetic report",Disposition="Synthetic disposition"});
+            Actor("hemo.hv.officer");Assert.Contains((await hq.Handle(new HvListQuery(new(Status:"RcaQueue")),ct)).Data,x=>x.Guid==next);
+            await Review(next,"Investigate",x=>x with{RcaRequired=false,ExternalStatus="NotRequired"});
+            Actor("hemo.hv.reviewer");await Review(next,"Close");Assert.Equal("Closed",(await Get(next)).Case.Status);
+            Assert.Equal(2,(await hq.Handle(new HvStatsQuery(new()),ct)).Closed);
             var actor=users.Single(x=>x.User.Username=="hemo.hv.reviewer");var other=new OrgLocation{Name="Other fixture center"};db.OrgLocation.Add(other);await db.SaveChangesAsync(ct);
             var assignment=new UserRole{UserGUID=actor.UserGUID,RoleGUID=actor.RoleGUID,OrgLocationGUID=other.GUID,ExpireDate=DateTime.Now.AddDays(1)};db.UserRole.Add(assignment);await db.SaveChangesAsync(ct);db.ChangeTracker.Clear();
             http.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",actor.UserGUID.ToString()),new Claim("UserRoles",assignment.Gkey.ToString())},"Fixture"));http.Request.Headers["UserRole"]=assignment.Gkey.ToString();

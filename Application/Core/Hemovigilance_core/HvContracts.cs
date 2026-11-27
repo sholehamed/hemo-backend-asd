@@ -10,7 +10,7 @@ public record HvDetail(HvCaseRow Case,string BloodGroup,string TransferStatus,Da
 public record HvCandidate(Guid Guid,string TransferNumber,string PatientName,string HisNumber,string Ward,string ProductCode,string UnitCode,string Status,DateTime? StartedAt,DateTime? EndedAt,bool SuspectedReaction,byte[] Version);
 public record HvOwner(Guid UserGuid,string Name);
 public record HvCapabilities(bool List,bool Detail,bool Stats,bool Candidates,bool Report,bool Observe,bool DoctorReview,bool BankReview,bool Investigate,bool ReturnToDoctor,bool PublishRca,bool AssignCapa,bool Owners,bool CapaProgress,bool CapaVerify,bool Close,bool External,bool Reports,bool Archive,bool ReportExternal,Guid UserGuid);
-public record HvFilters(string? Search=null,string? Status=null,string? Ward=null,string? ProductCode=null,string? Severity=null,Guid? TransferGuid=null,DateTimeOffset? From=null,DateTimeOffset? To=null,int PageNumber=1,int PageSize=20);
+public record HvFilters(string? Search=null,string? Status=null,string? Ward=null,string? ProductCode=null,string? Severity=null,Guid? TransferGuid=null,DateTimeOffset? From=null,DateTimeOffset? To=null,int PageNumber=1,int PageSize=20,bool MineCapa=false);
 public record HvCount(string Key,int Count);
 public record HvSummary(int Total,int Open,int Closed,int PendingDoctor,int PendingBank,int RcaOpen,int CapaMonitoring,int CapaOpen,int CapaOverdue,int ExternalPending,int StartedTransfers,List<HvCount> ByDiagnosis,List<HvCount> BySeverity,List<HvCount> ByWard,List<HvCount> ByProduct,List<HvCount> ByStatus);
 public record ReportInput(string Title,DateTimeOffset From,DateTimeOffset To,string? Ward=null,string? ProductCode=null);

@@ -142,3 +142,5 @@
 - CI add33073: 62/62 PASS. آزمون SQL به دو DbContext مستقل و رزرو همزمان دو واحد برای یک قلم یک‌واحدی گسترش یافت؛ دقیقاً یک رزرو باید ثبت شود. خطای deadlock/lock timeout در عملیات واحد با پیام بازیابی اطلاعات در ماژول جدید کنترل می‌شود. آزمون تغییر نسخه پذیرش پس از تأیید نیز اضافه شد. CI این کامیت pending.
 
 - Final build failed because Application has no direct SqlClient reference. Used provider-neutral DbException in new bank command only; no dependency/package changes. Re-run full suite.
+
+- Concurrent integration fixture uses independent IHttpContextAccessor instances to avoid shared AsyncLocal state between synthetic actors. No production change.

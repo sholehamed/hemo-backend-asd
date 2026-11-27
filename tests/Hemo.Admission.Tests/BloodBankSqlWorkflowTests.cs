@@ -23,6 +23,8 @@ using Xunit;
 namespace Hemo.Admission.Tests;
 public class BloodBankSqlWorkflowTests
 {
+    // Each test actor needs its own accessor; HttpContextAccessor uses a shared AsyncLocal holder.
+    private sealed class FixtureContextAccessor : IHttpContextAccessor { public HttpContext? HttpContext { get; set; } }
     private sealed class FixtureAudit(AuthService auth):SaveChangesInterceptor
     {
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData e,InterceptionResult<int> result,CancellationToken ct=default)
@@ -45,7 +47,7 @@ public class BloodBankSqlWorkflowTests
     {
         var connection=Environment.GetEnvironmentVariable("HEMO_TEST_SQL");Assert.False(string.IsNullOrWhiteSpace(connection));
         var cs=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection){InitialCatalog="Hemo_ST04_"+Guid.NewGuid().ToString("N")};
-        var http=new DefaultHttpContext();var auth=new AuthService(new HttpContextAccessor{HttpContext=http});
+        var http=new DefaultHttpContext();var auth=new AuthService(new FixtureContextAccessor{HttpContext=http});
         var options=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
             .AddInterceptors(new FixtureAudit(auth),new DispatchDomainEventsInterceptor(null!)).Options;
         await using var db=new ApplicationDbContext(options,auth);var ct=CancellationToken.None;
@@ -118,7 +120,7 @@ public class BloodBankSqlWorkflowTests
                 var context=new DefaultHttpContext();
                 context.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",operatorRole.UserGUID.ToString()),new Claim("UserRoles",operatorRole.Gkey.ToString())},"Fixture"));
                 context.Request.Headers["UserRole"]=operatorRole.Gkey.ToString();
-                var separateAuth=new AuthService(new HttpContextAccessor{HttpContext=context});
+                var separateAuth=new AuthService(new FixtureContextAccessor{HttpContext=context});
                 var separateOptions=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
                     .AddInterceptors(new FixtureAudit(separateAuth),new DispatchDomainEventsInterceptor(null!)).Options;
                 await using var separateDb=new ApplicationDbContext(separateOptions,separateAuth);

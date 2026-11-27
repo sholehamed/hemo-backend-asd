@@ -103,3 +103,9 @@
 
 - افزودن اصلاح هویت بیمار موقت/اصلاح نام و مشخصات موجود؛ عدم تغییر شناسه قطعی یا merge خودکار؛ ابطال بررسی‌های مرتبط و ثبت تاریخچه با reason. مجوز endpoint به endpoint بر اساس الگوی RoleAccess مستقیم یا MenuApi+RoleAccess(ApiGUID=null) موجود؛ بدون تغییر هیچ فایل Identity. Manifest داده اولیه دسترسی و راهنمای provisioning (اعطای مجوز فقط با تصمیم مدیر). بازبینی جدید هویت/سوابق آمادگی قبلی ترخیص را نامعتبر می‌کند.
 - عدم دسترسی سرویس خارجی و نبود آزمون runtime همچنان باز است.
+
+
+### ST-02 verification update
+- Run 46013810433 on 320f2393: Release build PASS; 22 rule/model tests PASS; SQL Server clean migration test PASS (1/1), no live DB accessed.
+- Added a SQL integration fixture covering creation, duplicate HIS rejection, temporary identity resolution, linked readmissions, stale version rejection, identity/history/clearance transitions, audit reviews, statistics, facility isolation and API-specific role grant. It uses real SQL and actual handlers, with test-only identity claims/audit stamping rather than company login/Mongo logging. Execution pending next CI run.
+- Backend PR #3 / Frontend PR #2 remain drafts. External service integration and live role provisioning still pending.

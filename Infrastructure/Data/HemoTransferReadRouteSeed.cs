@@ -5,7 +5,7 @@ namespace Infrastructure.Data;
 
 public static class HemoTransferReadRouteSeed
 {
-    public sealed record Route(string Path,string Label,string Icon,string Required,string[] Mapped,string[]? AnyOf=null);
+    public sealed record Route(string Path,string Label,string Icon,string Required,string[] Mapped,string[]? AnyOf=null,bool Visible=true,string[]? AllOf=null);
     public static readonly Route[] Routes=[
         new("/hemo/transfusion/tasks","کارتابل تحویل و تزریق","pi pi-list","tx-list",["tx-list"]),
         new("/hemo/transfusion/vitals","کارتابل پایش علائم حیاتی","pi pi-heart","tx-list",["tx-list"],["tx-vital"]),
@@ -13,14 +13,18 @@ public static class HemoTransferReadRouteSeed
         new("/hemo/transfusion/returns","کارتابل مرجوعی فرآورده","pi pi-replay","tx-list",["tx-list"],["tx-return","tx-accept-return","tx-dispose"]),
         new("/hemo/transfusion/records","سوابق و گزارش تزریق","pi pi-file","tx-list",["tx-list"])
     ];
+    public static readonly Route[] OperationRoutes=[
+        new("/hemo/transfusion/dispatch","صدور و ارسال فرآورده","pi pi-send","tx-candidates",["tx-candidates","tx-dispatch"],null,true,["tx-dispatch","tx-detail"]),
+        new("/hemo/transfusion/detail/:guid","جزئیات و عملیات حواله","pi pi-file","tx-detail",["tx-detail","tx-receive","tx-receipt-hold","tx-verify","tx-witness","tx-start","tx-vital","tx-complete","tx-stop","tx-return","tx-accept-return","tx-dispose","tx-doctor-note"],null,false)
+    ];
     public static bool CanOpen(Route route,IEnumerable<string> keys)
     {
         var allowed=keys.ToHashSet(StringComparer.Ordinal);
-        return allowed.Contains(route.Required)&&(route.AnyOf==null||route.AnyOf.Any(allowed.Contains));
+        return allowed.Contains(route.Required)&&(route.AnyOf==null||route.AnyOf.Any(allowed.Contains))&&(route.AllOf==null||route.AllOf.All(allowed.Contains));
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Menu original,IReadOnlyDictionary<string,Guid> apis,
-        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct)
+        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeOperations=false)
     {
         const string rootMarker="HEMO-R02-COMPANY-MENU";
         var root=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
@@ -50,16 +54,16 @@ public static class HemoTransferReadRouteSeed
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(k=>apis.TryGetValue(k,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in Routes)
+        foreach(var route in includeOperations?Routes.Concat(OperationRoutes):Routes)
         {
             var marker="HEMO-R02-TRANSFER:"+route.Path;
             var leaf=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);
             if(leaf==null)
             {
-                leaf=new Menu{routerLink=route.Path,label=route.Label,icon=route.Icon,ShowInMenu=true,IsPublic=false,PMenuGUID=root.GUID,ConvertID=marker};
+                leaf=new Menu{routerLink=route.Path,label=route.Label,icon=route.Icon,ShowInMenu=route.Visible,IsPublic=false,PMenuGUID=root.GUID,ConvertID=marker};
                 db.Menu.Add(leaf);await db.SaveChangesAsync(ct);
             }
-            else if(leaf.ConvertID!=marker||leaf.IsPublic||!leaf.ShowInMenu||leaf.PMenuGUID!=root.GUID)
+            else if(leaf.ConvertID!=marker||leaf.IsPublic||leaf.ShowInMenu!=route.Visible||leaf.PMenuGUID!=root.GUID)
                 throw new InvalidOperationException("Existing transfer route conflicts with R02 seed: "+route.Path);
             foreach(var key in route.Mapped)
             {

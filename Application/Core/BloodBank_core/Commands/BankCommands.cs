@@ -61,8 +61,16 @@ public class BankCommandHandler(BankBloodUnitService units,UserRoleService roles
     public async Task Handle(BankUnitActionCommand command,CancellationToken ct)
     {
         try { await ApplyUnitAction(command,ct); }
-        catch (System.Data.Common.DbException)
+        catch (Exception e) when (IsDatabaseFailure(e))
         { throw Error("خطای عملیات دیتابیس بانک خون؛ اطلاعات را دوباره دریافت و بررسی کنید."); }
+    }
+    // EF's SQL Server execution strategy may wrap a deadlock in an InvalidOperationException.
+    // Do not retry a clinical command blindly: the client must reload and revalidate.
+    private static bool IsDatabaseFailure(Exception? error)
+    {
+        for(var current=error;current!=null;current=current.InnerException)
+            if(current is System.Data.Common.DbException or DbUpdateException)return true;
+        return false;
     }
     private async Task ApplyUnitAction(BankUnitActionCommand command,CancellationToken ct)
     {

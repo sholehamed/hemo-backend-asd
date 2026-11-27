@@ -144,3 +144,5 @@
 - Final build failed because Application has no direct SqlClient reference. Used provider-neutral DbException in new bank command only; no dependency/package changes. Re-run full suite.
 
 - Concurrent integration fixture uses independent IHttpContextAccessor instances to avoid shared AsyncLocal state between synthetic actors. No production change.
+
+- Concurrent SQL test exposed actual SQL Server deadlock, wrapped by EF in InvalidOperationException → DbUpdateException → provider exception. Handle the wrapped database failure only within bank unit operation; fail safely, rollback, return refresh/review error instead of blindly retrying. Keep concurrency test and re-run.

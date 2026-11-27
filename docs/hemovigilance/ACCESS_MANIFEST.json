@@ -1,0 +1,173 @@
+{
+  "menu": "/hemo/hv",
+  "base": "/Identity/Hemovigilance",
+  "endpoints": [
+    {
+      "key": "hv-list",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/List"
+    },
+    {
+      "key": "hv-detail",
+      "method": "get",
+      "path": "/Identity/Hemovigilance/Detail/{guid}"
+    },
+    {
+      "key": "hv-stats",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Stats"
+    },
+    {
+      "key": "hv-candidates",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Candidates"
+    },
+    {
+      "key": "hv-report",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Report"
+    },
+    {
+      "key": "hv-observe",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Observe"
+    },
+    {
+      "key": "hv-doctor",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/DoctorReview"
+    },
+    {
+      "key": "hv-bank",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/BankReview"
+    },
+    {
+      "key": "hv-investigate",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Investigate"
+    },
+    {
+      "key": "hv-return",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/ReturnToDoctor"
+    },
+    {
+      "key": "hv-rca",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/PublishRca"
+    },
+    {
+      "key": "hv-assign",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/AssignCapa"
+    },
+    {
+      "key": "hv-owners",
+      "method": "get",
+      "path": "/Identity/Hemovigilance/Owners"
+    },
+    {
+      "key": "hv-progress",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/CapaProgress"
+    },
+    {
+      "key": "hv-verify",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/CapaVerify"
+    },
+    {
+      "key": "hv-close",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Close"
+    },
+    {
+      "key": "hv-external",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/External"
+    },
+    {
+      "key": "hv-reports",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Reports"
+    },
+    {
+      "key": "hv-report-detail",
+      "method": "get",
+      "path": "/Identity/Hemovigilance/ReportDetail/{guid}"
+    },
+    {
+      "key": "hv-archive",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/Archive"
+    },
+    {
+      "key": "hv-report-external",
+      "method": "post",
+      "path": "/Identity/Hemovigilance/ReportExternal"
+    }
+  ],
+  "roles": {
+    "Nurse": [
+      "hv-list",
+      "hv-detail",
+      "hv-stats",
+      "hv-candidates",
+      "hv-report",
+      "hv-observe",
+      "hv-progress"
+    ],
+    "Doctor": [
+      "hv-list",
+      "hv-detail",
+      "hv-stats",
+      "hv-doctor",
+      "hv-observe",
+      "hv-progress"
+    ],
+    "BloodBank": [
+      "hv-list",
+      "hv-detail",
+      "hv-stats",
+      "hv-bank",
+      "hv-observe",
+      "hv-progress"
+    ],
+    "BankSupervisor": [
+      "hv-list",
+      "hv-detail",
+      "hv-stats",
+      "hv-bank",
+      "hv-observe",
+      "hv-progress"
+    ],
+    "HvOfficer": [
+      "hv-list",
+      "hv-detail",
+      "hv-stats",
+      "hv-candidates",
+      "hv-report",
+      "hv-observe",
+      "hv-investigate",
+      "hv-return",
+      "hv-rca",
+      "hv-assign",
+      "hv-owners",
+      "hv-external",
+      "hv-reports",
+      "hv-report-detail",
+      "hv-archive",
+      "hv-report-external"
+    ],
+    "HvReviewer": [
+      "hv-list",
+      "hv-detail",
+      "hv-stats",
+      "hv-verify",
+      "hv-close",
+      "hv-reports",
+      "hv-report-detail"
+    ]
+  }
+}

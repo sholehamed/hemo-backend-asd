@@ -78,7 +78,7 @@ public class HvCommandHandler(HemoReactionService cases,UserRoleService roles,Au
                     r.ExternalStatus=v.ExternalStatus!;r.ExternalReference=v.ExternalStatus=="SentManually"?v.ExternalReference:null;break;
                 case "Close":
                     var actions=await Db.HemoCapa.Where(x=>x.HemoReactionGUID==r.GUID).ToListAsync(ct);
-                    if(!HvRules.CloseAllowed(r,actions)||!HvRules.ExternalComplete(r.ExternalStatus,r.ExternalReference)||a.UserGuid==r.ReporterUserGUID||a.UserGuid==r.RcaPublishedBy)throw Error("تکمیل بررسی‌ها، تأیید مستقل اقدامات و تعیین تکلیف گزارش لازم است.");
+                    if(await Db.BloodTransfer.AnyAsync(t=>t.GUID==r.BloodTransferGUID&&t.Status=="InProgress",ct)||!HvRules.CloseAllowed(r,actions)||!HvRules.ExternalComplete(r.ExternalStatus,r.ExternalReference)||a.UserGuid==r.ReporterUserGUID||a.UserGuid==r.RcaPublishedBy)throw Error("تکمیل بررسی‌ها، تأیید مستقل اقدامات و تعیین تکلیف گزارش لازم است.");
                     r.ClosedAt=now;r.ClosedBy=a.UserGuid;break;
             }
             r.Status=next;r.LastModified=now;Log(r,a,action,before,v.Notes,v);return true;

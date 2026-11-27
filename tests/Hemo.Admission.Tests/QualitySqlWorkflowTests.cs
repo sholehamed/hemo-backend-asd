@@ -186,4 +186,59 @@ public class QualitySqlWorkflowTests
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
     }
+
+    [Fact]
+    [Trait("Category","SqlServer")]
+    public async Task DashboardSeedHasScopedAggregateOnlyRoleAndHistoricalAdmissions()
+    {
+        var connection=Environment.GetEnvironmentVariable("HEMO_TEST_SQL");Assert.False(string.IsNullOrWhiteSpace(connection));
+        var cs=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection){InitialCatalog="Hemo_ST09_"+Guid.NewGuid().ToString("N")};
+        var http=new DefaultHttpContext();var auth=new AuthService(new FixtureContextAccessor{HttpContext=http});
+        var options=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
+            .AddInterceptors(new FixtureAudit(auth),new DispatchDomainEventsInterceptor(null!)).Options;
+        await using var db=new ApplicationDbContext(options,auth);var ct=CancellationToken.None;
+        try
+        {
+            await db.Database.MigrateAsync(ct);
+            var secrets=HemoDemoSeed.DemoAccounts(true,true,true,true,true).Append(HemoDemoSeed.DashboardManager).ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
+            secrets["HemoSeed:IncludeDashboardSamples"]="true";
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(secrets).Build(),ct);
+            var manager=await db.UserRole.AsNoTracking().Include(x=>x.User).SingleAsync(x=>x.User.Username=="hemo.dashboard.manager",ct);
+            Assert.Equal(15,await db.UserRole.CountAsync(ct));
+            Assert.Equal(7,await db.RoleAccess.CountAsync(x=>x.RoleGUID==manager.RoleGUID,ct));
+            var sample=await db.PatientAdmission.AsNoTracking().Where(x=>x.OrgLocationGUID==manager.OrgLocationGUID&&x.HISNumber.StartsWith("DEMO-ST09-")).ToDictionaryAsync(x=>x.GUID,x=>x.AdmittedAt,ct);
+            Assert.Equal(10,sample.Count);
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"HemoSeed:IncludeDashboardSamples","true"}}).Build(),ct);
+            Assert.Equal(15,await db.UserRole.CountAsync(ct));Assert.Equal(7,await db.RoleAccess.CountAsync(x=>x.RoleGUID==manager.RoleGUID,ct));
+            var after=await db.PatientAdmission.AsNoTracking().Where(x=>x.OrgLocationGUID==manager.OrgLocationGUID&&x.HISNumber.StartsWith("DEMO-ST09-")).ToListAsync(ct);
+            Assert.Equal(10,after.Count);foreach(var row in after){Assert.Equal(sample[row.GUID],row.AdmittedAt);Assert.Equal("Pending",row.IdentityStatus);}
+            db.ChangeTracker.Clear();
+            http.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",manager.UserGUID.ToString()),new Claim("UserRoles",manager.Gkey.ToString())},"Fixture"));
+            http.Request.Headers["UserRole"]=manager.Gkey.ToString();
+            var roles=new UserRoleService(db,null!,auth);
+            var aq=new PatientAdmissionQueryHandler(new PatientAdmissionService(db,null!),new PatientService(db,null!),new PatientAdmissionReviewService(db,null!),roles,auth);
+            // Anchor to the actual fixture day, robust across a UTC midnight during CI.
+            var day=sample.Values.Max().Date.AddDays(1);
+            Assert.Equal(4,(await aq.Handle(new PatientAdmissionStatsQuery(day.AddDays(-7),day.AddDays(-1),"بخش آموزشی آمار داخلی"),ct)).Total);
+            Assert.Equal(1,(await aq.Handle(new PatientAdmissionStatsQuery(day.AddDays(-14),day.AddDays(-8),"بخش آموزشی آمار داخلی"),ct)).Total);
+            Assert.True((await aq.Handle(new PatientAdmissionStatsQuery(),ct)).Total>=18);
+            await Assert.ThrowsAsync<ForbiddenAccessException>(()=>aq.Handle(new PatientAdmissionWithPaginationQuery(),ct));
+            var rq=new BloodRequestQueryHandler(new BloodRequestService(db,null!),roles,auth);
+            Assert.True((await rq.Handle(new BloodRequestStatsQuery(),ct)).Total>0);
+            var bq=new BankQueryHandler(new BankBloodUnitService(db,null!),roles,auth);
+            Assert.True((await bq.Handle(new BankStatsQuery(),ct)).Total>0);
+            var tq=new TransferQueryHandler(new BloodTransferService(db,null!),roles,auth);
+            Assert.True((await tq.Handle(new TransferStatsQuery(),ct)).Total>0);
+            var hq=new HvQueryHandler(new HemoReactionService(db,null!),roles,auth);
+            Assert.Equal(3,(await hq.Handle(new HvStatsQuery(new()),ct)).Total);
+            var eq=new EquipmentQueryHandler(new HemoEquipmentService(db,null!),roles,auth);
+            Assert.Equal(4,(await eq.Handle(new EquipmentSummaryQuery(),ct)).Total);
+            await Assert.ThrowsAsync<ForbiddenAccessException>(()=>eq.Handle(new EquipmentListQuery(new()),ct));
+            var qq=new QualityQueryHandler(new HemoQualityRecordService(db,null!),roles,auth);
+            Assert.True((await qq.Handle(new QualityStatsQuery(new()),ct)).QcRecords>0);
+            var caps=await qq.Handle(new QualityCapabilitiesQuery(),ct);
+            Assert.True(caps.Permissions["stats"]);Assert.False(caps.Permissions["qcList"]);Assert.False(caps.Permissions["qcCreate"]);
+        }
+        finally{await db.Database.EnsureDeletedAsync(ct);}
+    }
 }

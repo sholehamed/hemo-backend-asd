@@ -206,3 +206,6 @@
 - ST08-07/08: user guide in frontend docs/delivery, backend developer/deployment guide, API supplement. ST08-03/05/09: live role/HTTP/SQL/browser end-to-end and final acceptance remain open. No production deployment.
 
 - Added DeliverySqlWorkflowTests.NewAdmissionToCompletedTransfusionAndReactionAcrossRealHandlers: fresh admission, verified identity/history, nurse/doctor request, technical equipment registration/service/independent release, temperature, bank inventory/lab/reserve/ready, dispatch, distinct nurse witness, monitoring/completion, late reaction/independent closure, administrative readiness and rejection of new request after readiness. Asserts links and scoped role grants. Real isolated SQL + handlers, synthetic actors (not HTTP). CI NOT OBSERVED for latest head. Backend PR #9; Frontend PR #8.
+
+### ST08 | CI verification
+- GitHub-hosted run 46036819262 on 8c1173af45a72af6cd352c0f084a41b8e01eaa9e: Release Build PASS; 106/106 non-SQL and 10/10 SQL tests PASS, including new fresh-record workflow, aggregate seed and clearance regression; migration on isolated SQL PASS. No live company DB, real browser/API or clinical acceptance claimed. Partial request disposition remains a known functional limitation. PR #9 remains open pending frontend gate and final acceptance.

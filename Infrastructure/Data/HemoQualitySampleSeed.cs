@@ -31,8 +31,13 @@ internal static class HemoQualitySampleSeed
             if(f.Item1.EndsWith("FRIDGE")){db.BankTemperatureLog.Add(Mark(new BankTemperatureLog{OrgLocationGUID=org,EquipmentCode=e.Code,MeasuredAt=past,RecordedAt=past,Temperature=0m,Assessment="Acceptable",Notes=Note,ActorUserGUID=tech.UserGUID,ActorRoleGUID=tech.RoleGUID},f.Item1+":temp",tech.UserGUID,past));}
             await db.SaveChangesAsync(ct);
         }
-        // Register existing demo-only ST05/ST06 codes as held until explicit technical review, without editing historical logs or units.
-        // Do not seed them automatically: preserve the ability to exercise prior stages.
+        // A dedicated stored unit allows the operator to exercise the shared cold-chain hold.
+        var unit=await db.BankBloodUnit.IgnoreQueryFilters().SingleOrDefaultAsync(x=>x.OrgLocationGUID==org&&x.UnitCode=="DEMO-ST07-U1",ct);
+        if(unit==null){
+            var u=Mark(new BankBloodUnit{OrgLocationGUID=org,UnitCode="DEMO-ST07-U1",ProductCode="RBC",BloodGroup="O+",SupplySource=Note,EquipmentCode="DEMO-ST07-FRIDGE",ReceivedAt=past,ExpiresAt=now.AddDays(7),Status="ReceivedHold"},"stored-unit",bank.UserGUID,past);
+            db.BankBloodUnit.Add(u);db.BankUnitEvent.Add(Mark(new BankUnitEvent{BankBloodUnitGUID=u.GUID,ActorUserGUID=bank.UserGUID,ActorRoleGUID=bank.RoleGUID,Action="Receive",PreviousStatus="",NewStatus="ReceivedHold",OccurredAt=past,Reason=Note},"stored-unit:receive",bank.UserGUID,past));await db.SaveChangesAsync(ct);
+        }else if(unit.ConvertID!=Prefix+"stored-unit")throw new InvalidOperationException("Conflicting ST07 stock fixture.");
+        // Do not register ST05/06 legacy codes automatically or alter their evidence.
         async Task Create(string kind,string key,string title,UserRole actor,QualityHeader header,QualityLineData data,Guid? owner=null,DateTime? due=null,string status="Draft")
         {
             var number="DEMO-"+key;var existing=await db.HemoQualityRecord.IgnoreQueryFilters().SingleOrDefaultAsync(x=>x.OrgLocationGUID==org&&x.Number==number,ct);

@@ -56,7 +56,7 @@ public class EquipmentCommandHandler(HemoEquipmentService equipment,UserRoleServ
         if(cmd.Action=="Hold"){Ensure(e.Status=="Operational");e.Status="Hold";}
         if(cmd.Action=="Release"){
             var last=await Db.HemoEquipmentEvent.Where(x=>x.HemoEquipmentGUID==e.GUID&&(x.Kind=="Calibration"||x.Kind=="Maintenance"||x.Kind=="Repair"||x.Kind=="Qualification")).OrderByDescending(x=>x.OccurredAt).ThenByDescending(x=>x.GUID).FirstOrDefaultAsync(ct);
-            var barrier=await Db.HemoEquipmentEvent.Where(x=>x.HemoEquipmentGUID==e.GUID&&(x.Kind=="IncidentReport"||x.Kind=="IncidentResolve"||x.Kind=="Hold"||x.Kind=="Edit"||x.Kind=="Temperature"&&x.NewStatus=="Hold")).MaxAsync(x=>(DateTime?)x.OccurredAt,ct);
+            var barrier=await Db.HemoEquipmentEvent.Where(x=>x.HemoEquipmentGUID==e.GUID&&(x.Kind=="IncidentReport"||x.Kind=="IncidentResolve"||x.Kind=="Hold"||x.Kind=="Edit"||x.Kind=="TemperatureHold")).MaxAsync(x=>(DateTime?)x.OccurredAt,ct);
             var accepted=false;if(last?.EvidenceJson!=null&&(!barrier.HasValue||last.OccurredAt>=barrier.Value)){using var json=JsonDocument.Parse(last.EvidenceJson);accepted=json.RootElement.TryGetProperty("Result",out var result)&&result.GetString()=="Accepted";}
             Ensure(QualityRules.CanRelease(e.Status,incident,accepted&&last!.ActorUserGUID!=a.UserGuid)&&QualityRules.Text(v.Reference,200)&&(!e.CalibrationDueAt.HasValue||e.CalibrationDueAt>DateTime.UtcNow)&&(!e.MaintenanceDueAt.HasValue||e.MaintenanceDueAt>DateTime.UtcNow),"گواهی معتبر، تأیید مستقل، نبود حادثه باز و سررسید معتبر لازم است.");e.Status="Operational";
         }
@@ -81,6 +81,6 @@ public class EquipmentCommandHandler(HemoEquipmentService equipment,UserRoleServ
         return await Atomic(async()=>{var e=await Load(v.Guid,a,ct);Check(e.Version,v.Version);Ensure(e.Status!="Archived");var before=e.Status;var now=DateTime.UtcNow;
         var log=new BankTemperatureLog{OrgLocationGUID=a.OrgLocationGUID,EquipmentCode=e.Code,MeasuredAt=v.MeasuredAt.UtcDateTime,RecordedAt=now,Temperature=v.Temperature,Assessment=v.Assessment,Notes=v.Notes,ActorUserGUID=a.UserGuid,ActorRoleGUID=a.RoleGuid};Db.BankTemperatureLog.Add(log);
         if(v.Assessment!="Acceptable"){e.Status="Hold";foreach(var u in await Stored(e).Where(x=>x.Status!="Quarantined").ToListAsync(ct)){var old=u.Status;u.Status="Quarantined";u.InspectionAt=null;u.LastModified=now;Db.BankUnitEvent.Add(new BankUnitEvent{BankBloodUnitGUID=u.GUID,BloodRequestGUID=u.BloodRequestGUID,ActorUserGUID=a.UserGuid,ActorRoleGUID=a.RoleGuid,Action="TemperatureHold",PreviousStatus=old,NewStatus=u.Status,OccurredAt=now,Reason=v.Notes,Temperature=v.Temperature});}}
-        Log(e,a,"Temperature",before,v.Notes,data:new{TemperatureLogGuid=log.GUID,Input=v});return log.GUID;},ct);
+        Log(e,a,v.Assessment=="Acceptable"?"Temperature":"TemperatureHold",before,v.Notes,data:new{TemperatureLogGuid=log.GUID,Input=v});return log.GUID;},ct);
     }
 }

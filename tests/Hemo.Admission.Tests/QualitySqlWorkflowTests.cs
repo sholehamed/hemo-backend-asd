@@ -98,11 +98,13 @@ public class QualitySqlWorkflowTests
             Actor("hemo.equipment.reviewer");cd=await Equipment(centrifuge.Guid);await ec.Handle(new EquipmentStateCommand(new(cd.Equipment.Guid,cd.Equipment.Version,"Fixture independent review","DEMO"),"Release"),ct);
             Assert.Equal("Operational",(await Equipment(centrifuge.Guid)).Equipment.Status);
             Actor("hemo.equipment.tech");var fd=await Equipment(fridge.Guid);
-            var bankUnit=new BankBloodUnit{OrgLocationGUID=org,UnitCode="DEMO-ST07-U1",ProductCode="RBC",BloodGroup="O+",SupplySource="Synthetic",EquipmentCode=fridge.Code,ReceivedAt=DateTime.UtcNow.AddHours(-1),ExpiresAt=DateTime.UtcNow.AddDays(1),Status="Available"};
-            db.BankBloodUnit.Add(bankUnit);await db.SaveChangesAsync(ct);
+            var bankUnit=await db.BankBloodUnit.AsNoTracking().SingleAsync(x=>x.OrgLocationGUID==org&&x.UnitCode=="DEMO-ST07-U1",ct);Assert.Equal(1,fd.StoredUnits);
             await ec.Handle(new EquipmentTemperatureCommand(new(fridge.Guid,fd.Equipment.Version,DateTimeOffset.UtcNow,"Morning",0m,-1m,1m,true,true,true,"Concern","Synthetic concern")),ct);
             fd=await Equipment(fridge.Guid);Assert.Equal("Hold",fd.Equipment.Status);Assert.Equal(2,fd.Temperatures.Count);Assert.Equal("Quarantined",(await db.BankBloodUnit.AsNoTracking().SingleAsync(x=>x.GUID==bankUnit.GUID,ct)).Status);
             Assert.False(await EquipmentInterlock.Available(db,org,fridge.Code,ct));
+            Actor("hemo.bloodbank");var bhandler=new BankCommandHandler(new BankBloodUnitService(db,null!),roles,auth);await Assert.ThrowsAsync<ServiceExeption>(()=>bhandler.Handle(new ReceiveBankUnitCommand(new("DEMO-BLOCKED","RBC","O+",null,"Fixture",fridge.Code,DateTimeOffset.UtcNow.AddMinutes(-1),DateTimeOffset.UtcNow.AddDays(1))),ct));
+            var bquery=new BankQueryHandler(new BankBloodUnitService(db,null!),roles,auth);Assert.True((await bquery.Handle(new BankUnitQuery(bankUnit.GUID),ct)).Unit.EquipmentBlocked);
+            Actor("hemo.bank.supervisor");Assert.Equal(1,(await bquery.Handle(new BankStatsQuery(),ct)).EquipmentBlocked);
             Actor("hemo.equipment.reviewer");await Assert.ThrowsAsync<ServiceExeption>(()=>ec.Handle(new EquipmentStateCommand(new(fridge.Guid,fd.Equipment.Version,"Fixture"),"Archive"),ct));
             Actor("hemo.quality.officer");var qcap=await qq.Handle(new QualityCapabilitiesQuery(),ct);Assert.True(qcap.Permissions["auditCreate"]);Assert.False(qcap.Permissions["auditApprove"]);
             async Task<QualityDetail> Get(string kind,Guid id){db.ChangeTracker.Clear();return await qq.Handle(new QualityDetailQuery(kind,id),ct);}

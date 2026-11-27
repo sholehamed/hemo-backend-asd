@@ -43,7 +43,7 @@ public class HvQueryHandler(HemoReactionService cases,UserRoleService roles,Auth
         return new(await q.OrderByDescending(x=>x.SuspectedReaction).ThenByDescending(x=>x.StartedAt).ThenBy(x=>x.GUID).Skip((page-1)*size).Take(size).Select(x=>new HvCandidate(x.GUID,x.TransferNumber,x.PatientName,x.HisNumber,x.Ward,x.ProductCode,x.UnitCode,x.Status,x.StartedAt,x.EndedAt,x.SuspectedReaction,x.Version)).ToListAsync(ct),await q.CountAsync(ct),page,size);
     }
     public async Task<HvSummary> Handle(HvStatsQuery f,CancellationToken ct){var a=await HvAccess.Require(roles,auth,"post","/Stats",ct);return await HvReportQuery.Summary(Db,a.OrgLocationGUID,f.Filters??new HvFilters(),ct);}
-    public async Task<List<HvOwner>> Handle(HvOwnersQuery f,CancellationToken ct){var a=await HvAccess.Require(roles,auth,"get","/Owners",ct);return await HvOwnerQuery.Eligible(Db,a.OrgLocationGUID).Select(x=>new HvOwner(x.UserGUID,x.User.FirstName+" "+x.User.LastName)).Distinct().OrderBy(x=>x.Name).ToListAsync(ct);}
+    public async Task<List<HvOwner>> Handle(HvOwnersQuery f,CancellationToken ct){var a=await HvAccess.Require(roles,auth,"get","/Owners",ct);var rows=await HvOwnerQuery.Eligible(Db,a.OrgLocationGUID).Select(x=>new {x.UserGUID,Name=x.User.FirstName+" "+x.User.LastName}).Distinct().OrderBy(x=>x.Name).ToListAsync(ct);return rows.Select(x=>new HvOwner(x.UserGUID,x.Name)).ToList();}
     public async Task<HvCapabilities> Handle(HvCapabilitiesQuery f,CancellationToken ct)
     {
         var a=await AdmissionScope.GetAssignmentAsync(roles,auth,ct);Task<bool> Can(string p,string method="post")=>HvAccess.Can(roles,a,method,"/"+p,ct);

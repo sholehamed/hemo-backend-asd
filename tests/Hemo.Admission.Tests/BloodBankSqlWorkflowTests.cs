@@ -108,8 +108,32 @@ public class BloodBankSqlWorkflowTests
             await Assert.ThrowsAsync<ServiceExeption>(()=>Lab(unit,"Accepted","Reactive"));
             await Lab(unit);await Lab(extra);await Lab(frozen);
             Assert.Equal(3,(await bq.Handle(new BankLabHistoryQuery(RequestGuid:guid),ct)).TotalCount);
-            var stale=(await Get(unit)).Unit.Version;
-            await Action(unit,"Reserve","Reserve",guid,requestVersion);
+            // Compete for the same single requested RBC quantity from two independent
+            // DbContexts/transactions. Exactly one reservation may commit.
+            var versions=new Dictionary<Guid,byte[]>{{unit,(await Get(unit)).Unit.Version},{extra,(await Get(extra)).Unit.Version}};
+            var operatorRole=users.Single(x=>x.User.Username=="hemo.bloodbank");
+            var gate=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            async Task<bool> Compete(Guid id)
+            {
+                var context=new DefaultHttpContext();
+                context.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",operatorRole.UserGUID.ToString()),new Claim("UserRoles",operatorRole.Gkey.ToString())},"Fixture"));
+                context.Request.Headers["UserRole"]=operatorRole.Gkey.ToString();
+                var separateAuth=new AuthService(new HttpContextAccessor{HttpContext=context});
+                var separateOptions=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
+                    .AddInterceptors(new FixtureAudit(separateAuth),new DispatchDomainEventsInterceptor(null!)).Options;
+                await using var separateDb=new ApplicationDbContext(separateOptions,separateAuth);
+                var handler=new BankCommandHandler(new BankBloodUnitService(separateDb,null!),new UserRoleService(separateDb,null!,separateAuth),separateAuth);
+                await gate.Task;
+                try { await handler.Handle(new BankUnitActionCommand(new(id,versions[id],"Reserve",guid,requestVersion,"Concurrent fixture"),"Reserve"),ct);return true; }
+                catch(ServiceExeption){return false;}
+            }
+            var first=Compete(unit);var second=Compete(extra);gate.SetResult(true);
+            var outcomes=await Task.WhenAll(first,second);
+            Assert.Single(outcomes.Where(x=>x));
+            if(outcomes[1])(unit,extra)=(extra,unit);
+            db.ChangeTracker.Clear();
+            Assert.Equal(1,await db.BankBloodUnit.CountAsync(u=>u.BloodRequestGUID==guid&&u.ProductCode=="RBC",ct));
+            var stale=versions[unit];
             await Assert.ThrowsAsync<ServiceExeption>(()=>bank.Handle(new BankUnitActionCommand(new(unit,stale,"Hold",Reason:"Stale"),"Hold"),ct));
             await Assert.ThrowsAsync<ServiceExeption>(()=>Action(extra,"Reserve","Reserve",guid,requestVersion));
             await Action(unit,"Ready","Ready");
@@ -124,6 +148,11 @@ public class BloodBankSqlWorkflowTests
             await Action(frozen,"Ready","Ready");
             Assert.Equal("Ready",(await Get(frozen)).Unit.Status);
             var inv=await bq.Handle(new BankInventoryQuery(RequestGuid:guid),ct);Assert.Equal(2,inv.TotalCount);
+            Actor("hemo.admission");a=await admissionQuery.Handle(new PatientAdmissionFindByIdQuery(admission),ct);
+            await review.Handle(new ReviewAdmissionCommand(admission,"Identity","Verified",31,null,a.Version),ct);
+            Actor("hemo.bloodbank");
+            d=await query.Handle(new BloodRequestBankDetailQuery(guid),ct);Assert.True(d.AdmissionChanged);
+            await Assert.ThrowsAsync<ServiceExeption>(()=>Lab(extra));
             await bank.Handle(new RecordBankTemperatureCommand(new("FIX-FRIDGE",DateTimeOffset.UtcNow,9m,"Concern","Fixture concern")),ct);
             Assert.Equal("Quarantined",(await Get(unit)).Unit.Status);Assert.Equal("Quarantined",(await Get(extra)).Unit.Status);
             Actor("hemo.bank.supervisor");

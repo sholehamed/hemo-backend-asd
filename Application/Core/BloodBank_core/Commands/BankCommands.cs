@@ -60,6 +60,12 @@ public class BankCommandHandler(BankBloodUnitService units,UserRoleService roles
     }
     public async Task Handle(BankUnitActionCommand command,CancellationToken ct)
     {
+        try { await ApplyUnitAction(command,ct); }
+        catch (Microsoft.Data.SqlClient.SqlException e) when (e.Number==1205 || e.Number==1222)
+        { throw Error("عملیات همزمان بانک خون؛ اطلاعات را دوباره دریافت و بررسی کنید."); }
+    }
+    private async Task ApplyUnitAction(BankUnitActionCommand command,CancellationToken ct)
+    {
         var v=command.Input;
         Validate(new UnitActionValidator(),v);
         var expected=v.Action is "StartThaw" or "FinishThaw"?"Thaw":v.Action;

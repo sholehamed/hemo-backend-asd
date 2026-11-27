@@ -267,8 +267,8 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             bankRequest=await Json(await client.GetAsync(requests+"/Bank/"+req));
             requestVersion=bankRequest.GetProperty("version").GetBytesFromBase64();
             await BankAction("Reserve",req,requestVersion,HttpStatusCode.BadRequest);
-            var u=await Unit();
-            var lab=new LabInput(unit,u.Unit.Version,req,requestVersion,"FIX","Confirmed","O+","Synthetic method","NonReactive","NonReactive","NonReactive","NonReactive","NonReactive","FIX-REPORT","Accepted","Synthetic fixture");
+            var labUnitSnapshot=await Unit();
+            var lab=new LabInput(unit,labUnitSnapshot.Unit.Version,req,requestVersion,"FIX","Confirmed","O+","Synthetic method","NonReactive","NonReactive","NonReactive","NonReactive","NonReactive","FIX-REPORT","Accepted","Synthetic fixture");
             Assert.NotEqual(Guid.Empty,(await Json(await client.PostAsJsonAsync(bankApi+"/Test",lab))).GetGuid());
             await Expect(await client.PostAsJsonAsync(bankApi+"/Test",lab),HttpStatusCode.BadRequest);
             await BankAction("Reserve",req,requestVersion);Assert.Equal("Reserved",(await Unit()).Unit.Status);

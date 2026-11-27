@@ -337,6 +337,7 @@ public static class HemoDemoSeed
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);
+        if(includeDashboardSamples)await HemoDashboardSampleSeed.ApplyAsync(db,org.GUID,ct);
         await tx.CommitAsync(ct);
     }
 }

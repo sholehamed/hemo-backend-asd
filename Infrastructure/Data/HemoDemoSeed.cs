@@ -18,6 +18,24 @@ public static class HemoDemoSeed
         new("Supervisor","hemo.supervisor","HEMO | مسئول پذیرش","مسئول پذیرش",[..ReadKeys,"create","update","review","identity"]),
         new("Viewer","hemo.viewer","HEMO | مشاهده پذیرش","مشاهده",ReadKeys)
     ];
+    public static readonly Account[] BloodRequestAccounts=[
+        new("Nurse","hemo.nurse","HEMO | پرستار","پرستار",["list","detail","request-list","request-detail","request-stats","request-nurse","request-edit","request-submit","request-cancel"]),
+        new("Doctor","hemo.doctor","HEMO | پزشک","پزشک",["list","detail","request-list","request-detail","request-stats","request-doctor","request-edit","request-submit","request-cancel","request-decide"]),
+        new("BloodBank","hemo.bloodbank","HEMO | کارشناس بانک خون","بانک خون",["request-bank","request-bank-detail"])
+    ];
+    public static readonly (string Key,string Method,string Path)[] BloodRequestEndpoints=[
+        ("request-list","post","/Identity/BloodRequest/BindPaging"),
+        ("request-detail","get","/Identity/BloodRequest/{guid}"),
+        ("request-stats","post","/Identity/BloodRequest/Stats"),
+        ("request-nurse","post","/Identity/BloodRequest/Nurse"),
+        ("request-doctor","post","/Identity/BloodRequest/Doctor"),
+        ("request-edit","put","/Identity/BloodRequest"),
+        ("request-submit","post","/Identity/BloodRequest/Submit"),
+        ("request-cancel","post","/Identity/BloodRequest/Cancel"),
+        ("request-decide","post","/Identity/BloodRequest/Decide"),
+        ("request-bank","post","/Identity/BloodRequest/BankQueue"),
+        ("request-bank-detail","get","/Identity/BloodRequest/Bank/{guid}")
+    ];
     public static readonly (string Key,string Method,string Path)[] Endpoints=[
         ("stats","post","/Identity/PatientAdmission/Stats"),("list","post","/Identity/PatientAdmission/BindPaging"),
         ("detail","get","/Identity/PatientAdmission/{guid}"),("find","get","/Identity/PatientAdmission/FindPatient"),
@@ -35,8 +53,10 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
+        var includeRequests=config.GetValue<bool>("HemoSeed:IncludeBloodRequests");
+        var accounts=includeRequests?Accounts.Concat(BloodRequestAccounts).ToArray():Accounts;
         var pending=new Dictionary<string,string>();
-        foreach(var account in Accounts)
+        foreach(var account in accounts)
         {
             var existing=await db.User.IgnoreQueryFilters().SingleOrDefaultAsync(u=>u.Username==account.Username,ct);
             if(existing!=null && (existing.IsDelete || existing.ConvertID!=Prefix+account.Key))
@@ -88,8 +108,19 @@ public static class HemoDemoSeed
             menu=new Menu{label="پذیرش بیمارستان",routerLink="/admission",icon="pi pi-id-card",ShowInMenu=true,Gorder=1,IsPublic=false};
             db.Menu.Add(menu);await db.SaveChangesAsync(ct);
         }
+        Menu? requestMenu=null;
+        if(includeRequests)
+        {
+            requestMenu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/hemo/requests",ct);
+            if(requestMenu==null)
+            {
+                requestMenu=new Menu{label="درخواست خون",routerLink="/hemo/requests",icon="pi pi-file-edit",ShowInMenu=true,Gorder=2,IsPublic=false};
+                db.Menu.Add(requestMenu);await db.SaveChangesAsync(ct);
+            }
+        }
         var apis=new Dictionary<string,Guid>();
-        foreach(var e in Endpoints.Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
+        var endpointMenus=new Dictionary<string,Guid>();
+        foreach(var e in (includeRequests?Endpoints.Concat(BloodRequestEndpoints):Endpoints).Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
         {
             var api=await db.Api.FirstOrDefaultAsync(a=>a.SubSystemGUID==subsystem.GUID && a.APITypeName==e.Item2 && a.DownstreamPathTemplate==e.Item3,ct);
             if(api==null)
@@ -100,10 +131,12 @@ public static class HemoDemoSeed
             if(!api.Active)throw new InvalidOperationException("HEMO API is inactive: "+e.Item3);
             apis[e.Item1]=api.GUID;
             if(e.Item1 is "login" or "hemo-login")continue;
-            if(!await db.MenuApi.AnyAsync(m=>m.MenuGUID==menu.GUID&&m.ApiGUID==api.GUID,ct))
-            {db.MenuApi.Add(new MenuApi{MenuGUID=menu.GUID,ApiGUID=api.GUID});await db.SaveChangesAsync(ct);}
+            var targetMenu=e.Item1.StartsWith("request-")?requestMenu!:menu;
+            endpointMenus[e.Item1]=targetMenu.GUID;
+            if(!await db.MenuApi.AnyAsync(m=>m.MenuGUID==targetMenu.GUID&&m.ApiGUID==api.GUID,ct))
+            {db.MenuApi.Add(new MenuApi{MenuGUID=targetMenu.GUID,ApiGUID=api.GUID});await db.SaveChangesAsync(ct);}
         }
-        foreach(var account in Accounts)
+        foreach(var account in accounts)
         {
             var role=await db.Role.SingleOrDefaultAsync(r=>r.ConvertID==Prefix+account.Key,ct);
             if(role==null)
@@ -113,9 +146,9 @@ public static class HemoDemoSeed
             }
             foreach(var key in account.Permissions)
             {
-                var id=apis[key];
-                if(!await db.RoleAccess.AnyAsync(r=>r.RoleGUID==role.GUID&&r.MenuGUID==menu.GUID&&r.ApiGUID==id,ct))
-                {db.RoleAccess.Add(new RoleAccess{RoleGUID=role.GUID,MenuGUID=menu.GUID,ApiGUID=id});await db.SaveChangesAsync(ct);}
+                var id=apis[key];var menuId=endpointMenus[key];
+                if(!await db.RoleAccess.AnyAsync(r=>r.RoleGUID==role.GUID&&r.MenuGUID==menuId&&r.ApiGUID==id,ct))
+                {db.RoleAccess.Add(new RoleAccess{RoleGUID=role.GUID,MenuGUID=menuId,ApiGUID=id});await db.SaveChangesAsync(ct);}
             }
             var user=await db.User.SingleOrDefaultAsync(u=>u.Username==account.Username,ct);
             if(user==null)

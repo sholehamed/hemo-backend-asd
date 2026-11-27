@@ -52,6 +52,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<PatientAdmission> PatientAdmission { get; set; }
     public DbSet<PatientAdmissionReview> PatientAdmissionReview { get; set; }
 
+    public DbSet<BloodRequest> BloodRequest { get; set; }
+    public DbSet<BloodRequestItem> BloodRequestItem { get; set; }
+    public DbSet<RequestClinicalData> RequestClinicalData { get; set; }
+    public DbSet<RequestApproval> RequestApproval { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

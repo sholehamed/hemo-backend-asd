@@ -127,6 +127,9 @@ public class BloodRequestCommandHandler(BloodRequestService requests,UserRoleSer
     {
         var user=await BloodRequestAccess.Require(roles,auth,"post",suffix,true,ct);
         Validate(new DecisionInputValidator(),input);
+        // Keep the admission and request reads stable through the write. Otherwise a
+        // concurrent admission correction could slip between the version check and approval.
+        await using var transaction=await ((DbContext)Db).Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         var r=await Load(input.Guid,user,ct);if(owner)Owner(r,user);CheckVersion(r,input.Version);
         var before=r.Status;
         var next=BloodRequestWorkflow.Next(before,input.Action)??throw Error("عملیات در وضعیت فعلی مجاز نیست.");
@@ -144,6 +147,7 @@ public class BloodRequestCommandHandler(BloodRequestService requests,UserRoleSer
         r.Status=next;r.LastModified=DateTime.UtcNow;
         Log(r,user,input.Action,before,input.Reason,input.Action=="Approve"?input.Physician:null);
         await Save(ct);
+        await transaction.CommitAsync(ct);
     }
     public Task Handle(SubmitBloodRequestCommand r,CancellationToken ct)=>r.Input.Action=="Submit"?Transition(r.Input,"/Submit",true,ct):throw Error("عملیات نامعتبر است.");
     public Task Handle(CancelBloodRequestCommand r,CancellationToken ct)=>r.Input.Action=="Cancel"?Transition(r.Input,"/Cancel",true,ct):throw Error("عملیات نامعتبر است.");

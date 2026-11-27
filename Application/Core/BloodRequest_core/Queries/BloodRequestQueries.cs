@@ -57,8 +57,12 @@ public class BloodRequestQueryHandler(BloodRequestService requests,UserRoleServi
         var u=await BloodRequestAccess.Require(roles,auth,"get",bank?"/Bank/{guid}":"/{guid}",false,ct);
         var q=Scope(u).Where(x=>x.GUID==guid);
         if(bank)q=q.Where(x=>x.Status==BloodRequestWorkflow.AwaitingBank);
-        var row=await q.Select(Projection(u)).SingleOrDefaultAsync(ct)??throw new ServiceExeption("درخواست در محدوده مجاز یافت نشد.");
-        var r=await q.Include(x=>x.PatientAdmission).Include(x=>x.Items).Include(x=>x.ClinicalData).Include(x=>x.Approvals).AsSplitQuery().SingleAsync(ct);
+        // Read the detail and its row version as one SQL statement, not a summary
+        // from one state followed by detail/decision data from another.
+        var r=await q.Include(x=>x.PatientAdmission).ThenInclude(x=>x.Patient).Include(x=>x.Items).Include(x=>x.ClinicalData).Include(x=>x.Approvals).AsSingleQuery().SingleOrDefaultAsync(ct)
+            ??throw new ServiceExeption("درخواست در محدوده مجاز یافت نشد.");
+        var a=r.PatientAdmission;
+        var row=new RequestRow(r.GUID,r.RequestNumber,r.PatientAdmissionGUID,a.Patient.FirstName+" "+a.Patient.LastName,a.HISNumber,a.Ward,r.Source,r.FormType,r.Priority,r.Status,r.Created,r.SubmittedAt,r.Items.Where(x=>!x.IsDelete).Sum(x=>x.Quantity),r.RequesterUserGUID==u.UserGuid&&r.RequesterRoleGUID==u.RoleGuid);
         var c=r.ClinicalData!;
         var clinical=new ClinicalInput(c.Diagnosis,c.ClinicalIndication,c.Hemoglobin,c.Hematocrit,c.PlateletCount,c.RecentTransfusion,c.RecentPregnancy,c.PriorReaction,c.UnexpectedAntibody,c.Premedication,c.SampleStatus,c.Notes,c.FormDetailsJson==null?null:JsonSerializer.Deserialize<SpecialFormData>(c.FormDetailsJson));
         PhysicianCompletion? Physician(RequestApproval a)

@@ -122,3 +122,6 @@
 
 ### ST03-05 | تست یکپارچه و فرم‌های مجزا
 - تست واقعی SQL برای چرخه پیش‌نویس، اصلاح اقلام، idempotency، ارسال، بازگشت، تغییر پذیرش، رد مجوز پرستار، تأیید پزشک، صف بانک و ایزوله بودن مرکز اضافه شد؛ seed هر شش نقش در SQL بررسی می‌شود. محدودیت نوع فرم براساس منبع و تطبیق اقلام فرم اختصاصی اضافه شد. Build پیشین تا 682f5add سبز؛ نتیجه کامیت جدید هنوز بررسی نشده.
+
+### ST-03 | final acceptance review
+- Previous head c779e7c5: Release build and all 48 tests green (44 non-SQL, 4 SQL). Final review found a gap between reading admission rowversion and committing a request transition. New request transitions use a serializable SQL transaction and detail reads use a single statement for row/version/history consistency. No existing infrastructure changed. Revalidate with the full existing SQL lifecycle test suite. Later ST-04 must revalidate current admission/decision before any blood allocation or release.

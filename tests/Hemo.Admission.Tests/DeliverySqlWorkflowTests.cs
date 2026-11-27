@@ -168,8 +168,10 @@ public class DeliverySqlWorkflowTests
             }
             Actor("hemo.dashboard.manager");
             Assert.True(await checkPage.Handle(new RoleAccessCheckPagePermissionCommand{Menu="/hemo/dashboard"},ct));
-            foreach(var p in new[]{"/admission/new","/admission/list","/admission/detail/:guid","/hemo/requests","/hemo/bank/inventory","/hemo/transfusion/tasks","/hemo/hv/cases","/hemo/quality/equipment/:guid","/hemo/quality/qc/:guid","/hemo/quality/facility"})
+            foreach(var p in new[]{"/admission/new","/admission/list","/admission/detail/:guid","/hemo/requests/bank","/hemo/requests/detail/:guid","/hemo/bank/inventory","/hemo/transfusion/tasks","/hemo/hv/cases","/hemo/quality/equipment/:guid","/hemo/quality/qc/:guid","/hemo/quality/facility"})
                 Assert.False(await checkPage.Handle(new RoleAccessCheckPagePermissionCommand{Menu=p},ct));
+            // Legacy grouped menu retains stats grant, but the request list handler still denies individual records.
+            Assert.True(await checkPage.Handle(new RoleAccessCheckPagePermissionCommand{Menu="/hemo/requests"},ct));
             Assert.Equal(7,grants.Where(g=>g.RoleGUID==manager.RoleGUID).Select(g=>g.ApiGUID).Distinct().Count());
             var roles=new UserRoleService(db,null!,auth);
             var patients=new PatientService(db,null!);var admissions=new PatientAdmissionService(db,null!);var reviews=new PatientAdmissionReviewService(db,null!);

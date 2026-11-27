@@ -343,6 +343,8 @@ public static class HemoDemoSeed
         var includeRequestDetailPages=config.GetValue<bool>("HemoSeed:IncludeRequestDetailPages");
         if(includeRequests&&(includeRequestFormPages||includeRequestDetailPages||config.GetValue<bool>("HemoSeed:IncludeRequestReadPages")))
             await HemoRequestReadRouteSeed.ApplyAsync(db,requestMenu!,apis,accounts,ct,includeRequestDetailPages,includeRequestFormPages);
+        if(includeBank&&config.GetValue<bool>("HemoSeed:IncludeBankReadPages"))
+            await HemoBankReadRouteSeed.ApplyAsync(db,bankMenu!,apis,accounts,ct);
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);

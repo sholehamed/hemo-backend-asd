@@ -1,0 +1,127 @@
+syntax = "proto3";
+option csharp_namespace = "web";
+
+service UserRoleGRPCService {
+  rpc GetUserListByRoleIDs (GetUserListByRoleIDsRequest) returns (GetUserListByRoleIDsReply);
+  rpc GetRoleInfo (GetRoleInfoRequest) returns (GetRoleInfoReply);
+  rpc GetUserRoleInfo (GetUserRoleInfoRequest) returns (GetUserRoleInfoReply);
+  rpc CreateUser (CreateUserRequest) returns (CreateUserReply);
+  rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoReply);
+  rpc CreateUserRole (CreateUserRoleRequest) returns (CreateUserRoleReply);
+  rpc RemoveUserRole (RemoveUserRoleRequest) returns (RemoveUserRoleReply);
+  rpc GetOrInsertUserWithUserRole (GetOrInsertUserWithUserRoleRequest) returns (GetOrInsertUserWithUserRoleResponse);
+}
+
+message GetUserListByRoleIDsRequest {
+  string RoleGUIDs = 1;
+  string OrglocationGUID = 2;
+}
+message GetUserListByRoleIDsReply {
+  string Data = 1;
+}
+
+
+message GetRoleInfoRequest {
+  string GUID = 1;
+}
+message GetRoleInfoReply {
+  string OrgLocationTypeGUID = 1;
+  string PRoleGUID = 2;
+  string Name = 3;
+  string OrgLocationGUID = 4;
+  string Path = 5;
+  int64 Gkey = 6;
+  int64 Level = 7;
+}
+
+message RemoveUserRoleRequest {
+  string UserGUID = 1;
+  int64 RoleGkey = 2;
+  string OrgLocationGUID = 3;
+}
+message RemoveUserRoleReply {
+  bool IsSuccess = 1;
+}
+
+message CreateUserRoleRequest {
+  string UserGUID = 1;
+  int64 RoleGkey = 2;
+  int64 ExpireDate = 3;
+  string OrgLocationGUID = 4;
+}
+message CreateUserRoleReply {
+  int64 UserRoleGkey = 1;
+}
+
+message GetUserInfoRequest {
+  string UserGUID = 1;
+}
+
+message GetUserInfoReply {
+  string Username = 1;
+  string FirstName = 2;
+  string LastName = 3;
+  string Mobile = 4;
+  string Email = 5;
+  string UserGUID = 6;
+}
+
+message GetUserRoleInfoRequest {
+  int64 UserRoleGkey = 1;
+}
+message GetUserRoleInfoReply {
+  string UserGuid = 1;
+  string RoleGuid = 2;
+  int64 RoleGkey = 3;
+  string OrgLocationGUID = 4;
+  int64 OrgLocationGkey = 5;
+  string OrgLocationPath = 6;
+  string RolePath = 7;
+  bool IsSuperAdmin = 8;
+  string UserFirstName = 9;
+  string UserLastName = 10;
+  string RoleName = 11;
+  int64 ExpireDate = 12;
+  string Nationalcode=13;
+}
+
+message CreateUserRequest {
+  string  Username = 1;
+  string  Password = 2;
+  string  FirstName = 3;
+  string  LastName = 4;
+  string  Email = 5;
+  string  Mobile = 6;
+  string  OrgLocationTypeGUID = 7;
+  string  OrgLocationName = 8;
+  string  OrgLocationAddress = 9;
+  string  OrgLocationTell = 10;
+  string  OrgLocationFax = 11;
+  string  OrgLocationEmail = 12;
+  string  OrgLocationUrl = 13;
+  string Nationalcode=14;
+}
+
+message CreateUserReply {
+  string UserGuid = 1;
+  string OrgLocationGuid = 2;
+  bool Success = 3;
+  string ErrorMessage = 4;
+}
+
+message GetOrInsertUserWithUserRoleRequest {
+  string  Username = 1;
+  string  Password = 2;
+  string  FirstName = 3;
+  string  LastName = 4;
+  string  Email = 5;
+  string  Mobile = 6;
+  string  OrgLocationGUID = 7;
+  int64 RoleGkey = 8;
+  string ExpireDate = 9;
+  string Nationalcode=10;
+}
+
+message GetOrInsertUserWithUserRoleResponse{
+  string UserGuid = 1;
+}

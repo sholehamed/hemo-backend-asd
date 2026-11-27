@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option csharp_namespace = "web";
+
+service MenuApiGRPCService {
+  rpc InsertMenuApi (InsertMenuApiRequest) returns (InsertMenuApiReply);
+}
+
+message InsertMenuApiRequest {
+  string url = 1;
+  string apiid=2;
+}
+message InsertMenuApiReply {
+  bool result = 1;
+}

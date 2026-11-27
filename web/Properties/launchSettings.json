@@ -1,0 +1,59 @@
+﻿{
+  "Fschema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:18021",
+      "sslPort": 44303
+    }
+  },
+  "profiles": {
+    "Backend_IdentityServer.web": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:5001;http://localhost:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConsulUrl": "192.168.3.7",
+        "ConsulPort": "8500"
+      }
+    },
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://192.168.1.9:9001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        //"Mongo_ConnectionString": "mongodb://192.168.3.7:27017",
+        "ConsulUrl": "192.168.3.7",
+        "ConsulPort": "8500",
+        "GatewayUrl": "http://172.16.22.75:1001",
+        "WebServiceGRPCUrl": "http://192.168.11.105:8015",
+        "IdentityUrl": "http://127.0.0.1:1002",
+        "IdentityGRPCUrl": "http://127.0.0.1:1003",
+        "Payment_GRPCUrl": "http://192.168.3.7:1007",
+        //"DataBaseServer": "192.168.3.7",
+        //"DataBasePassword": "ASDasd159753@",
+        "LogGRPCUrl": "http://192.168.3.7:1037"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7163;http://localhost:5160",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+dotnet tool install --global NSwag.ConsoleCore
+
+
+vadood@vadood-X541UVK:~/MyProjects/Backend_IdentityServer/web$ nswag run config-webapi.nswag
+
+nswag run config-webapi.nswag
+nswag run nswag_client.json

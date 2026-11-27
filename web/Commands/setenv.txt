@@ -1,0 +1,45 @@
+﻿
+Server:
+setx GatewayUrl "http://gateway.bolut.ir/" /M
+setx IdentityUrl "http://192.168.3.7:1002" /M
+setx IdentityGRPCUrl "http://192.168.3.7:1003" /M
+setx Domains "http://localhost:4200,http://localhost:4201" /M
+setx ValidIssuer "https://api.asd.ir/" /M 
+setx ValidAudience "https://api.asd.ir/" /M
+setx IssuerSigningKey "YmwIiauq7L3lf0xW42rYZTZZ0rCeR80iwnDm31RcBLV60PKFwAVH5gURjw1cP32P9uy2jUmiINF7qvANu8lmiPqKFDs8GIzbzUtFODrT0QydL4pbmtAR2boQyFfb42pu" /M
+setx AdminIssuerSigningKey "ctX0Rpzf9i48i10StuElk0X6nghvc5LHwCJowobd1J0ucUb3p80n5VoDo2L0twAGzg1stDPW8nfgBhDeTg0gXutUMfDNEshHR0uG0mKkKuwrVC2kfEH0Jz7mBrwSnu4s" /M
+setx DataBaseServer "172.16.22.223" /M
+setx DataBasePort "1433" /M
+setx DataBaseUsername "sa" /M
+setx DataBasePassword "ASDasd159753" /M
+setx DbType "2" /M
+setx InsertMenuApiLog "1" /M
+setx InsertMenuApiRoles "1,2" /M
+setx Audience "456808262525-egn6as75d6poe9mvcj9s9csao2jb0m6l.apps.googleusercontent.com" /M
+
+Client:
+setx GatewayUrl "http://192.168.3.7:1001/"
+setx IdentityUrl "http://192.168.3.7:1002"
+setx IdentityGRPCUrl "http://192.168.3.7:1003"
+setx Domains "http://localhost:4200"
+setx ValidIssuer "https://api.asd.ir/"
+setx ValidAudience "https://api.asd.ir/"
+setx IssuerSigningKey "YmwIiauq7L3lf0xW42rYZTZZ0rCeR80iwnDm31RcBLV60PKFwAVH5gURjw1cP32P9uy2jUmiINF7qvANu8lmiPqKFDs8GIzbzUtFODrT0QydL4pbmtAR2boQyFfb42pu"
+setx AdminIssuerSigningKey "ctX0Rpzf9i48i10StuElk0X6nghvc5LHwCJowobd1J0ucUb3p80n5VoDo2L0twAGzg1stDPW8nfgBhDeTg0gXutUMfDNEshHR0uG0mKkKuwrVC2kfEH0Jz7mBrwSnu4s"
+setx DataBaseServer "172.16.22.223"
+setx DataBasePort "1433"
+setx DataBaseUsername "sa"
+setx DataBasePassword "ASDasd159753"
+setx DbType "2"
+setx InsertMenuApiLog "1"
+setx InsertMenuApiRoles "1"
+
+
+
+reg delete HKCU\Environment /F /V IdentityPort
+
+
+
+nano ~/.bashrc
+source ~/.bashrc
+export DbType "1"

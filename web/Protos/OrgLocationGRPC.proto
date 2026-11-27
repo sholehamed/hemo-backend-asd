@@ -1,0 +1,44 @@
+syntax = "proto3";
+option csharp_namespace = "web";
+
+service OrgLocationGRPCService {
+  rpc GetOrgLocationInfo (GetOrgLocationInfoRequest) returns (GetOrgLocationInfoReply);
+  rpc HasAccessToChild (HasAccessToChildRequest) returns (HasAccessToChildReply);
+  rpc GetChilds (GetChildsRequest) returns (GetChildsReply);
+}
+
+
+message GetOrgLocationInfoRequest {
+  string OrgLocationGUID = 1;
+}
+message GetOrgLocationInfoReply {
+  string Name = 1;
+  string POrgLocationGUID = 2;
+  string Address = 3;
+  string Tell = 4;
+  string Fax = 5;
+  string OrgLocationPath = 6;
+  string Email = 7;
+  string Url = 8;
+  int64 Gkey = 9;
+  int64 Level = 11;
+  string OrganizationGUID = 12;
+  string OrganizationName = 13;
+  string GUID = 14;
+}
+
+message HasAccessToChildRequest {
+  string ParentOrgLocationGUID = 1;
+  string ChildOrgLocationGUID = 2;
+}
+message HasAccessToChildReply {
+  bool HasAccess = 1;
+}
+
+message GetChildsRequest {
+  string OrgLocationGUID = 1;
+}
+message GetChildsReply {
+  string ChildOrgLocations = 1;
+ 
+}

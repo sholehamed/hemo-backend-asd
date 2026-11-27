@@ -1,0 +1,78 @@
+﻿services:
+  database:
+    image: postgres:latest
+    container_name: database
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=4jtwjRA88yCNuFJGhJk0iFLm83naI2LmJdx5RDvttNtZSYhaSs
+      - POSTGRES_DB=Idntity
+    restart: always
+    ports:
+      - "5432:5432"
+    networks:
+      - g_network
+    volumes:
+      - postgre-sql-data:/var/lib/postgresql/data
+
+  gateway:
+    image: gateway:latest
+    container_name: gateway
+    restart: always
+    ports:
+      - "80:80"    
+    networks:
+      - g_network
+    environment:
+      - GatewayUrl=http://0.0.0.0:80
+      - IdentityUrl=http://backend_identityserver:80
+      - IdentityGRPCUrl=http://backend_identityserver:81
+      - Domains=http://localhost:4201,http://localhost:4200
+      - ValidIssuer=https://api.bolut.ir/
+      - ValidAudience=https://api.bolut.ir/
+      - IssuerSigningKey=YmwIiauq7L3lf0xW42rYZTZZ0rCeR80iwnDm31RcBLV60PKFwAVH5gURjw1cP32P9uy2jUmiINF7qvANu8lmiPqKFDs8GIzbzUtFODrT0QydL4pbmtAR2boQyFfb42pu
+      - AdminIssuerSigningKey=ctX0Rpzf9i48i10StuElk0X6nghvc5LHwCJowobd1J0ucUb3p80n5VoDo2L0twAGzg1stDPW8nfgBhDeTg0gXutUMfDNEshHR0uG0mKkKuwrVC2kfEH0Jz7mBrwSnu4s
+      - InsertMenuApiLog=1
+      - InsertMenuApiRoles=1
+
+  backend_identityserver:
+    image: backend_identityserver:latest
+    container_name: backend_identityserver
+    restart: always    
+    networks:
+      - g_network
+    depends_on:
+      - database
+    environment:
+      - GatewayUrl=http://gateway:80
+      - IdentityUrl=http://0.0.0.0:80
+      - IdentityGRPCUrl=http://0.0.0.0:81
+      - ValidIssuer=https://api.bolut.ir/
+      - ValidAudience=https://api.bolut.ir/
+      - IssuerSigningKey=YmwIiauq7L3lf0xW42rYZTZZ0rCeR80iwnDm31RcBLV60PKFwAVH5gURjw1cP32P9uy2jUmiINF7qvANu8lmiPqKFDs8GIzbzUtFODrT0QydL4pbmtAR2boQyFfb42pu
+      - AdminIssuerSigningKey=ctX0Rpzf9i48i10StuElk0X6nghvc5LHwCJowobd1J0ucUb3p80n5VoDo2L0twAGzg1stDPW8nfgBhDeTg0gXutUMfDNEshHR0uG0mKkKuwrVC2kfEH0Jz7mBrwSnu4s
+      - DataBaseServer=database
+      - DataBasePort=5432
+      - DataBaseUsername=postgres
+      - DataBasePassword=4jtwjRA88yCNuFJGhJk0iFLm83naI2LmJdx5RDvttNtZSYhaSs
+      - DbType=1
+      - Audience=456808262525-egn6as75d6poe9mvcj9s9csao2jb0m6l.apps.googleusercontent.com
+#  nginx:
+#    image: nginx:latest
+#    container_name: nginx_proxy
+#    restart: always
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#    volumes:
+#      - /root/g_project/nginx/conf.d:/etc/nginx/conf.d:ro
+#      - /root/g_project/front/g_front:/usr/share/nginx/g_front:ro
+#    networks:
+#      - g_network
+
+
+volumes:
+  postgre-sql-data:
+    
+networks:
+  g_network:
+    driver: bridge  

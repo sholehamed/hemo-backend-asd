@@ -1,0 +1,14 @@
+syntax = "proto3";
+option csharp_namespace = "web";
+
+service TokenGRPCService {
+  rpc CheckToken (CheckTokenRequest) returns (CheckTokenReply);
+ }
+
+message CheckTokenRequest {
+  string Token = 1;
+}
+message CheckTokenReply {
+  bool IsValid = 1;
+}
+

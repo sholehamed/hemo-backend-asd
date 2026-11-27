@@ -1,0 +1,28 @@
+{
+  "runtime": "Net90",
+  "defaultVariables": null,
+  "documentGenerator": {
+    "fromDocument": {
+      "json": "./wwwroot/api/specification.json"
+    }
+  },
+  "codeGenerators": {
+    "openApiToTypeScriptClient": {
+      "Output": "C:\\Users\\v.vahid.ASD\\Desktop\\MyProjects\\vadood\\FrontIdentity\\src\\app\\Services\\api-client.ts",
+      "GenerateClientInterfaces": false,
+      "GenerateMultipleFiles": true,
+      "UseTransformOptionsMethod": false,
+      "GenerateDtoTypes": true,
+      "template": "angular",
+      "operationGenerationMode": "MultipleClientsFromFirstTagAndOperationId",
+      "defaultPropertyNameWorkaround": true,
+      "typeStyle": "Class",
+      "dateTimeType": "string",
+      "injectionTokenType": "InjectionToken",
+      "useInjectionToken": true,
+      "rxJsVersion": 7,
+      "useObservable": true,
+      "wrapResponses": false
+    }
+  }
+}

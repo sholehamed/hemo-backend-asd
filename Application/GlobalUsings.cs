@@ -1,0 +1,11 @@
+global using Ardalis.GuardClauses;
+global using AutoMapper;
+global using AutoMapper.QueryableExtensions;
+global using Microsoft.EntityFrameworkCore;
+global using FluentValidation;
+global using MediatR;
+global using Application.Common.Interfaces;
+global using Domain.Attributes;
+global using Domain.Entities;
+global using Application.Common.Mappings;
+global using Application.Repository.Services;

@@ -67,7 +67,7 @@ public class BloodRequestQueryHandler(BloodRequestService requests,UserRoleServi
             using var doc=JsonDocument.Parse(a.SnapshotJson);
             return doc.RootElement.TryGetProperty("Physician",out var value)&&value.ValueKind!=JsonValueKind.Null?value.Deserialize<PhysicianCompletion>():null;
         }
-        return new(row,r.Version,r.PatientAdmission.BloodGroup,r.PatientAdmission.IdentityStatus,r.PatientAdmission.BedNumber,
+        return new(row,r.ClientRequestId,r.Version,r.PatientAdmission.BloodGroup,r.PatientAdmission.IdentityStatus,r.PatientAdmission.BedNumber,
             r.Items.Where(i=>!i.IsDelete).OrderBy(i=>i.ProductCode).Select(i=>new RequestLineInput(i.ProductCode,i.Quantity,i.RequestedBloodGroup,i.SpecialInstructions)).ToList(),clinical,
             r.Approvals.OrderBy(a=>a.OccurredAt).ThenBy(a=>a.GUID).Select(a=>new ApprovalView(a.Action,a.PreviousStatus,a.NewStatus,a.Reason,a.SubmissionAttempt,a.OccurredAt,a.ActorUserGUID,a.ActorRoleGUID,Physician(a))).ToList(),
             r.AdmissionVersionAtSubmission!=null&&!r.AdmissionVersionAtSubmission.SequenceEqual(r.PatientAdmission.Version));
@@ -78,7 +78,7 @@ public class BloodRequestQueryHandler(BloodRequestService requests,UserRoleServi
     {
         var u=await AdmissionScope.GetAssignmentAsync(roles,auth,ct);
         Task<bool> Can(string method,string path,bool explicitGrant=false)=>BloodRequestAccess.Can(roles,u,method,path,explicitGrant,ct);
-        return new(await Can("post","/BindPaging"),await Can("get","/{guid}"),await Can("post","/Nurse",true),await Can("post","/Doctor",true),
+        return new(await Can("post","/BindPaging"),await Can("get","/{guid}"),await Can("post","/Stats"),await Can("post","/Nurse",true),await Can("post","/Doctor",true),
             await Can("put","",true),await Can("post","/Submit",true),await Can("post","/Cancel",true),await Can("post","/Decide",true),await Can("post","/BankQueue"),await Can("get","/Bank/{guid}"));
     }
     public async Task<RequestStats> Handle(BloodRequestStatsQuery r,CancellationToken ct)

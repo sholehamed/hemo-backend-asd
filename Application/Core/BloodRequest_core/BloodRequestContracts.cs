@@ -18,7 +18,7 @@ public record DecisionInput(Guid Guid,byte[] Version,string Action,string? Reaso
 public record RequestRow(Guid Guid,string RequestNumber,Guid PatientAdmissionGuid,string PatientName,string HisNumber,string Ward,
     string Source,string FormType,string Priority,string Status,DateTime Created,DateTime? SubmittedAt,int TotalUnits,bool Owned);
 public record ApprovalView(string Action,string PreviousStatus,string NewStatus,string? Reason,int SubmissionAttempt,DateTime OccurredAt,Guid ActorUserGuid,Guid ActorRoleGuid,PhysicianCompletion? Physician);
-public record RequestDetail(RequestRow Request,byte[] Version,string? BloodGroup,string IdentityStatus,string BedNumber,
+public record RequestDetail(RequestRow Request,Guid ClientRequestId,byte[] Version,string? BloodGroup,string IdentityStatus,string BedNumber,
     List<RequestLineInput> Items,ClinicalInput Clinical,List<ApprovalView> History,bool AdmissionChanged);
-public record RequestCapabilities(bool List,bool Detail,bool NurseCreate,bool DoctorCreate,bool Edit,bool Submit,bool Cancel,bool Decide,bool BankQueue,bool BankDetail);
+public record RequestCapabilities(bool List,bool Detail,bool Stats,bool NurseCreate,bool DoctorCreate,bool Edit,bool Submit,bool Cancel,bool Decide,bool BankQueue,bool BankDetail);
 public record RequestStats(int Total,int Draft,int AwaitingDoctor,int Returned,int AwaitingBank,int Rejected,int Cancelled);

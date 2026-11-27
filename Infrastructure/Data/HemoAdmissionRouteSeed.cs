@@ -25,14 +25,15 @@ public static class HemoAdmissionRouteSeed
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Guid admissionMenuGuid,
-        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeCompanyMenuPilot=false)
+        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeCompanyMenuPilot=false,bool includeReadPages=false)
     {
         const string prefix="HEMO-R02-ADMISSION:";
         var existingAdmission=await db.Menu.SingleAsync(m=>m.GUID==admissionMenuGuid,ct);
-        // Only the currently active report page is exposed under the company SubPath.
-        // Keep other pilot routes in their original locations until their UI is connected.
+        // Only activated pages are exposed under the company SubPath.
+        // Read pages require a separate opt-in for deployments on the earlier frontend.
         var companyRoot=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
         const string rootMarker="HEMO-R02-COMPANY-MENU";
+        includeCompanyMenuPilot |= includeReadPages;
         if(includeCompanyMenuPilot)
         {
             if(companyRoot==null)
@@ -56,7 +57,11 @@ public static class HemoAdmissionRouteSeed
         {
             var marker=prefix+route.Path;
             var menu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);
-            var parent=route.Path=="/admission/stats"&&ownedRoot!=null&&(includeCompanyMenuPilot||menu?.PMenuGUID==ownedRoot.GUID)?ownedRoot.GUID:existingAdmission.PMenuGUID;
+            var active=route.Path=="/admission/stats"&&includeCompanyMenuPilot||
+                includeReadPages&&(route.Path=="/admission/list"||route.Path=="/admission/his");
+            var previouslyAttached=ownedRoot!=null&&menu?.PMenuGUID==ownedRoot.GUID&&
+                (route.Path=="/admission/stats"||route.Path=="/admission/list"||route.Path=="/admission/his");
+            var parent=ownedRoot!=null&&(active||previouslyAttached)?ownedRoot.GUID:existingAdmission.PMenuGUID;
             if(menu==null)
             {
                 menu=new Menu{routerLink=route.Path,label=route.Label,icon=route.Icon,ShowInMenu=route.ShowInMenu,
@@ -67,7 +72,7 @@ public static class HemoAdmissionRouteSeed
                 throw new InvalidOperationException("Existing menu conflicts with R02 admission seed: "+route.Path);
             else if(menu.PMenuGUID!=parent)
             {
-                if(route.Path!="/admission/stats"||!includeCompanyMenuPilot||ownedRoot==null||menu.PMenuGUID!=existingAdmission.PMenuGUID||
+                if(!active||ownedRoot==null||menu.PMenuGUID!=existingAdmission.PMenuGUID||
                     await db.Menu.AnyAsync(m=>m.PMenuGUID==menu.GUID,ct))
                     throw new InvalidOperationException("Existing menu hierarchy conflicts with R02 admission seed: "+route.Path);
                 // Reparent only the seed-owned leaf. Menu.OnModified recalculates its path.

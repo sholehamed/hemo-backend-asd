@@ -10,6 +10,7 @@ using Application.Common.Interfaces;
 using Application.Common.Utility.Security;
 using Application.Core.BloodRequest_core;
 using Application.Core.BloodBank_core;
+using Application.Core.Hemovigilance_core;
 using Application.Core.Quality_core;
 using Application.Core.Transfusion_core;
 using Application.Core.Transfusion_core.Queries;
@@ -328,6 +329,149 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             Assert.Equal(new[]{"Dispatch","Receive","Verify","Witness","Start","Complete"},completed.Events.Select(x=>x.Action).Where(x=>x!="Vital"));
             Actor("hemo.bank.supervisor");
             Assert.Equal("Transfused",(await Unit()).Unit.Status);
+
+            // R03-03: reaction and quality acceptance using the same persisted transfer and seeded roles.
+            const string hvApi="/Identity/Hemovigilance";
+            Actor("hemo.nurse");
+            var reactionInput=new ReactionInput(transfer,completed.Transfer.Version,Guid.NewGuid(),DateTimeOffset.UtcNow,new[]{"Unknown"},"Unknown","Synthetic observation","Synthetic record");
+            await Expect(await client.PostAsJsonAsync(hvApi+"/Report",reactionInput with{OnsetAt=DateTimeOffset.UtcNow.AddDays(-1)}),HttpStatusCode.BadRequest);
+            var reaction=(await Json(await client.PostAsJsonAsync(hvApi+"/Report",reactionInput),HttpStatusCode.Created)).GetGuid();
+            Assert.Equal(reaction,(await Json(await client.PostAsJsonAsync(hvApi+"/Report",reactionInput),HttpStatusCode.Created)).GetGuid());
+            async Task<HvDetail> Reaction()=>Read<HvDetail>(await Json(await client.GetAsync(hvApi+"/Detail/"+reaction)));
+            async Task HvReview(string action,HttpStatusCode expected=HttpStatusCode.NoContent,Func<ReviewInput,ReviewInput>? edit=null)
+            {
+                var current=await Reaction();var payload=new ReviewInput(reaction,current.Case.Version,"Synthetic fixture");
+                await Expect(await client.PostAsJsonAsync(hvApi+"/"+action,edit==null?payload:edit(payload)),expected);
+            }
+            var initialReaction=await Reaction();
+            Assert.Equal(transfer,initialReaction.Case.TransferGuid);
+            Assert.Equal("Completed",initialReaction.TransferStatus);
+            Assert.Equal(actors["hemo.nurse"].User,initialReaction.ReporterUserGuid);
+            await HvReview("Observe");
+            await Expect(await client.PostAsJsonAsync(hvApi+"/Observe",new ReviewInput(reaction,initialReaction.Case.Version,"Stale observation")),HttpStatusCode.BadRequest);
+            await HvReview("DoctorReview",HttpStatusCode.Forbidden);
+            Actor("hemo.bloodbank");await HvReview("BankReview",HttpStatusCode.BadRequest);
+            Actor("hemo.doctor");await HvReview("DoctorReview",edit:x=>x with{DiagnosisCode="Undetermined",Severity="Unknown",Imputability="Unknown",Outcome="Unknown",Actions="Synthetic action",DoctorReference="FIX"});
+            Actor("hemo.bloodbank");await HvReview("BankReview",edit:x=>x with{SampleReference="FIX",ReportReference="FIX",Disposition="Synthetic disposition"});
+            Actor("hemo.hv.officer");await HvReview("ReturnToDoctor");
+            Assert.Null((await Reaction()).Case.DiagnosisCode);
+            Actor("hemo.doctor");await HvReview("DoctorReview",edit:x=>x with{DiagnosisCode="Undetermined",Severity="Unknown",Imputability="Unknown",Outcome="Unknown",Actions="Synthetic action",DoctorReference="FIX"});
+            Actor("hemo.bloodbank");await HvReview("BankReview",edit:x=>x with{SampleReference="FIX",ReportReference="FIX",Disposition="Synthetic disposition"});
+            Actor("hemo.hv.officer");await HvReview("Investigate",edit:x=>x with{RcaRequired=true,ExternalStatus="Required"});
+            ReviewInput Rca(ReviewInput x)=>x with{RcaLead="Fixture",RcaMethod="FiveWhys",MeetingAt=DateTimeOffset.UtcNow,Participants="Fixture",DirectCause="Fixture",RootCause="Fixture"};
+            await HvReview("PublishRca",HttpStatusCode.BadRequest,Rca);
+            var hvOwners=Read<List<HvOwner>>(await Json(await client.GetAsync(hvApi+"/Owners")));
+            var nurseGuid=actors["hemo.nurse"].User;
+            Assert.Contains(hvOwners,x=>x.UserGuid==nurseGuid);
+            var capa=(await Json(await client.PostAsJsonAsync(hvApi+"/AssignCapa",new CapaCreateInput(reaction,(await Reaction()).Case.Version,"Fixture corrective action","Corrective",nurseGuid,DateTimeOffset.UtcNow.AddDays(1),"Fixture indicator")),HttpStatusCode.Created)).GetGuid();
+            await HvReview("PublishRca",edit:Rca);
+            Actor("hemo.hv.reviewer");await HvReview("Close",HttpStatusCode.BadRequest);
+            async Task CapaAction(string action,int progress,HttpStatusCode expected=HttpStatusCode.NoContent)
+            {
+                var current=await Reaction();var line=current.Actions.Single(x=>x.Guid==capa);
+                await Expect(await client.PostAsJsonAsync(hvApi+"/"+action,new CapaActionInput(capa,line.Version,current.Case.Version,progress,"Synthetic evidence")),expected);
+            }
+            Actor("hemo.doctor");await CapaAction("CapaProgress",100,HttpStatusCode.BadRequest);
+            Actor("hemo.nurse");await CapaAction("CapaProgress",40);await CapaAction("CapaProgress",100);
+            await CapaAction("CapaVerify",100,HttpStatusCode.Forbidden);
+            Actor("hemo.hv.reviewer");await CapaAction("CapaReject",100);
+            Actor("hemo.nurse");await CapaAction("CapaProgress",100);
+            Actor("hemo.hv.reviewer");await CapaAction("CapaVerify",100);await HvReview("Close",HttpStatusCode.BadRequest);
+            Actor("hemo.hv.officer");
+            await HvReview("External",HttpStatusCode.BadRequest,x=>x with{ExternalStatus="SentManually"});
+            await HvReview("External",edit:x=>x with{ExternalStatus="SentManually",ExternalReference="FIX-EXTERNAL"});
+            var report=(await Json(await client.PostAsJsonAsync(hvApi+"/Archive",new ReportInput("Synthetic report",DateTimeOffset.UtcNow.AddDays(-1),DateTimeOffset.UtcNow,"Fixture")),HttpStatusCode.Created)).GetGuid();
+            async Task<HvReportDetail> Archived()=>Read<HvReportDetail>(await Json(await client.GetAsync(hvApi+"/ReportDetail/"+report)));
+            var archivedBefore=await Archived();
+            Assert.Equal(1,archivedBefore.Summary.Total);Assert.Equal(0,archivedBefore.Summary.Closed);
+            await Expect(await client.PostAsJsonAsync(hvApi+"/ReportExternal",new ReportExternalInput(report,archivedBefore.Report.Version,"SentManually","FIX-REPORT")),HttpStatusCode.NoContent);
+            Actor("hemo.hv.reviewer");await HvReview("Close");
+            var closedReaction=await Reaction();
+            Assert.Equal("Closed",closedReaction.Case.Status);Assert.Equal("Verified",Assert.Single(closedReaction.Actions).Status);
+            Assert.Contains(closedReaction.Events,x=>x.Action=="ReturnToDoctor");
+            Assert.Equal(0,(await Archived()).Summary.Closed);
+            var liveHv=Read<HvSummary>(await Json(await client.PostAsJsonAsync(hvApi+"/Stats",new HvFilters(Ward:"Fixture"))));
+            Assert.Equal(1,liveHv.Closed);
+            Actor("hemo.nurse");await HvReview("Observe",HttpStatusCode.BadRequest);
+            Actor("hemo.admission");var finalAdmission=await Json(await client.GetAsync(admission+"/"+id));
+            await Expect(await client.PostAsJsonAsync(admission+"/Review",new ReviewAdmissionCommand(id,"Clearance","Ready",31,"Synthetic documented review",finalAdmission.GetProperty("version").GetBytesFromBase64())),HttpStatusCode.NoContent);
+            Assert.Equal("ReadyForDischarge",(await Json(await client.GetAsync(admission+"/"+id))).GetProperty("status").GetString());
+            Actor("hemo.nurse");await Expect(await client.PostAsJsonAsync(requests+"/Nurse",requestInput with{ClientRequestId=Guid.NewGuid()}),HttpStatusCode.BadRequest);
+
+            // Exercise the existing R02 quality fixtures, not fabricated statuses or direct handler calls.
+            async Task<QualityDetail> Quality(string kind,Guid recordId)=>Read<QualityDetail>(await Json(await client.GetAsync(equipmentApi+"/"+kind+"Detail/"+recordId)));
+            async Task<QualityRow> SingleQuality(string kind,QualityFilter? filter=null)
+            {
+                var page=await Json(await client.PostAsJsonAsync(equipmentApi+"/"+kind+"List",filter??new QualityFilter()));
+                return Read<QualityRow>(Assert.Single(page.GetProperty("data").EnumerateArray()));
+            }
+            async Task QualityReview(string kind,Guid recordId,string action,HttpStatusCode expected=HttpStatusCode.NoContent)
+            {
+                var current=await Quality(kind,recordId);
+                await Expect(await client.PostAsJsonAsync(equipmentApi+"/"+kind+action,new QualityAction(recordId,current.Record.Version,"Fixture review")),expected);
+            }
+            Actor("hemo.quality.officer");
+            var auditRow=await SingleQuality("Audit");var auditDetail=await Quality("Audit",auditRow.Guid);
+            Assert.Equal(1,auditDetail.AuditScore);Assert.Equal(2,auditDetail.AuditMaximum);
+            Assert.NotEqual(Guid.Empty,(await Json(await client.PostAsJsonAsync(equipmentApi+"/AuditLine",new QualityLineInput(auditRow.Guid,auditDetail.Record.Version,"Fixture clause",new QualityLineData(Clause:"FIX-2",Score:2))))).GetGuid());
+            await QualityReview("Audit",auditRow.Guid,"Submit");
+            await QualityReview("Audit",auditRow.Guid,"Approve",HttpStatusCode.Forbidden);
+            Actor("hemo.quality.reviewer");await QualityReview("Audit",auditRow.Guid,"Approve");
+            auditDetail=await Quality("Audit",auditRow.Guid);Assert.Equal("Approved",auditDetail.Record.Status);Assert.Equal(3,auditDetail.AuditScore);Assert.Equal(4,auditDetail.AuditMaximum);
+            var qcRow=await SingleQuality("Qc");await QualityReview("Qc",qcRow.Guid,"Reject");
+            // A rejected QC is returned for correction; only the original seeded bank author can resubmit.
+            Actor("hemo.quality.officer");await QualityReview("Qc",qcRow.Guid,"Submit",HttpStatusCode.BadRequest);
+            Actor("hemo.bloodbank");await QualityReview("Qc",qcRow.Guid,"Submit");
+            Actor("hemo.quality.reviewer");await QualityReview("Qc",qcRow.Guid,"Approve");
+            Assert.Equal("Approved",(await Quality("Qc",qcRow.Guid)).Record.Status);
+            Actor("hemo.quality.officer");
+            var trainingRow=await SingleQuality("Training");await QualityReview("Training",trainingRow.Guid,"Submit",HttpStatusCode.BadRequest);
+            var trainingDetail=await Quality("Training",trainingRow.Guid);var attendance=Assert.Single(trainingDetail.Lines);
+            var trainingOwners=Read<List<QualityOwner>>(await Json(await client.GetAsync(equipmentApi+"/TrainingOwners")));
+            Assert.Contains(trainingOwners,x=>x.UserGuid==attendance.OwnerUserGuid);
+            await Json(await client.PostAsJsonAsync(equipmentApi+"/TrainingLine",new QualityLineInput(trainingRow.Guid,trainingDetail.Record.Version,attendance.Title,attendance.Data with{Attendance="Present",PreScore=10,PostScore=15,CertificateReference="FIX"},attendance.OwnerUserGuid,null,attendance.Guid,attendance.Version)));
+            await QualityReview("Training",trainingRow.Guid,"Submit");
+            Actor("hemo.quality.reviewer");await QualityReview("Training",trainingRow.Guid,"Approve");
+            Assert.Equal("Approved",(await Quality("Training",trainingRow.Guid)).Record.Status);
+            Actor("hemo.nurse");var meetingRow=await SingleQuality("Committee",new QualityFilter(Mine:true));
+            async Task CommitteeAction(string action,int progress,HttpStatusCode expected=HttpStatusCode.NoContent)
+            {
+                var current=await Quality("Committee",meetingRow.Guid);var resolution=Assert.Single(current.Lines);
+                await Expect(await client.PostAsJsonAsync(equipmentApi+"/Committee"+action,new ResolutionProgress(meetingRow.Guid,current.Record.Version,resolution.Guid,resolution.Version,progress,"Fixture evidence")),expected);
+            }
+            await CommitteeAction("Progress",100);await CommitteeAction("Verify",100,HttpStatusCode.Forbidden);
+            Actor("hemo.quality.reviewer");await QualityReview("Committee",meetingRow.Guid,"Close",HttpStatusCode.BadRequest);
+            await CommitteeAction("Return",100);
+            Actor("hemo.nurse");await CommitteeAction("Progress",100);
+            Actor("hemo.quality.reviewer");await CommitteeAction("Verify",100);await QualityReview("Committee",meetingRow.Guid,"Close");
+            Assert.Equal("Closed",(await Quality("Committee",meetingRow.Guid)).Record.Status);
+            var qualityStats=Read<QualityStats>(await Json(await client.PostAsJsonAsync(equipmentApi+"/Stats",new QualityStatsFilter())));
+            Assert.Equal(1,qualityStats.Present);Assert.Equal(0,qualityStats.OpenResolutions);
+            Actor("hemo.quality.officer");
+            var facilityBefore=Read<FacilityView>(await Json(await client.GetAsync(equipmentApi+"/Facility")));
+            var facilityUpdate=new FacilityInput(facilityBefore.Version,"Synthetic updated",null,null,null,null,null,null,"Fixture","Fixture change");
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/FacilitySave",facilityUpdate),HttpStatusCode.NoContent);
+            var facilityAfter=Read<FacilityView>(await Json(await client.GetAsync(equipmentApi+"/Facility")));
+            Assert.Equal("Synthetic updated",facilityAfter.FacilityName);Assert.Contains(facilityAfter.History!,x=>x.Notes=="Fixture change");
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/FacilitySave",facilityUpdate),HttpStatusCode.BadRequest);
+
+            Actor("hemo.equipment.tech");e=await Equipment();
+            var incident=(await Json(await client.PostAsJsonAsync(equipmentApi+"/IncidentReport",new IncidentInput(equipment,e.Equipment.Version,"Urgent","Synthetic incident")))).GetGuid();
+            e=await Equipment();Assert.Equal("Hold",e.Equipment.Status);
+            var incidentRow=e.Incidents.Single(x=>x.Guid==incident);
+            Actor("hemo.equipment.reviewer");
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentRelease",new EquipmentActionInput(equipment,e.Equipment.Version,"Fixture premature review","FIX")),HttpStatusCode.BadRequest);
+            Actor("hemo.equipment.tech");
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/IncidentResolve",new IncidentResolve(incident,incidentRow.Version,e.Equipment.Version,"Synthetic resolution","FIX")),HttpStatusCode.NoContent);
+            e=await Equipment();Assert.Equal("Resolved",e.Incidents.Single(x=>x.Guid==incident).Status);
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentService",new ServiceInput(equipment,e.Equipment.Version,"Calibration",DateTimeOffset.UtcNow,DateTimeOffset.UtcNow.AddDays(1),"FIX","Synthetic provider","Accepted","Synthetic checks","Synthetic only")),HttpStatusCode.NoContent);
+            Actor("hemo.equipment.reviewer");e=await Equipment();
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentRelease",new EquipmentActionInput(equipment,e.Equipment.Version,"Fixture independent review","FIX")),HttpStatusCode.NoContent);
+            Assert.Equal("Operational",(await Equipment()).Equipment.Status);
+            Actor(manager);
+            await Expect(await client.GetAsync(hvApi+"/Detail/"+reaction),HttpStatusCode.Forbidden);
+            await Expect(await client.GetAsync(hvApi+"/ReportDetail/"+report),HttpStatusCode.Forbidden);
+            await Expect(await client.GetAsync(equipmentApi+"/AuditDetail/"+auditRow.Guid),HttpStatusCode.Forbidden);
             Actor(manager);await Expect(await client.GetAsync(transferApi+"/Detail/"+transfer),HttpStatusCode.Forbidden);
             Actor(manager);await Expect(await client.GetAsync(admission+"/"+id),HttpStatusCode.Forbidden);
             await Expect(await client.GetAsync(requests+"/"+req),HttpStatusCode.Forbidden);

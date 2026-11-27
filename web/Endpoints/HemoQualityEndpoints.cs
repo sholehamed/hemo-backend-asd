@@ -10,7 +10,7 @@ public class HemoQuality : EndpointGroupBase
 {
     public override void Map(WebApplication app)
     {
-        app.MapGroup(this).RequireAuthorization()
+        var group=app.MapGroup(this).RequireAuthorization()
             .AddEndpointFilter(async (context,next) =>
             {
                 var http=context.HttpContext;
@@ -21,62 +21,62 @@ public class HemoQuality : EndpointGroupBase
                    !Guid.TryParse(key,out _) || !service.CheckToken(key!))
                     return Results.Unauthorized();
                 return await next(context);
-            })
-            .MapGet(Capabilities,"Capabilities")
-            .MapPost(EquipmentList,"EquipmentList")
-            .MapGet(EquipmentDetail,"EquipmentDetail/{guid:guid}")
-            .MapPost(EquipmentStats,"EquipmentStats")
-            .MapPost(Incidents,"Incidents")
-            .MapPost(EquipmentCreate,"EquipmentCreate")
-            .MapPost(EquipmentEdit,"EquipmentEdit")
-            .MapPost(EquipmentService,"EquipmentService")
-            .MapPost(EquipmentHold,"EquipmentHold")
-            .MapPost(EquipmentRelease,"EquipmentRelease")
-            .MapPost(EquipmentArchive,"EquipmentArchive")
-            .MapPost(IncidentReport,"IncidentReport")
-            .MapPost(IncidentResolve,"IncidentResolve")
-            .MapPost(EquipmentTemperature,"EquipmentTemperature")
-            .MapGet(Facility,"Facility")
-            .MapPost(FacilitySave,"FacilitySave")
-            .MapPost(Stats,"Stats")
-            .MapPost(QcList,"QcList")
-            .MapGet(QcDetail,"QcDetail/{guid:guid}")
-            .MapPost(QcCreate,"QcCreate")
-            .MapPost(QcEdit,"QcEdit")
-            .MapPost(QcLine,"QcLine")
-            .MapPost(QcSubmit,"QcSubmit")
-            .MapPost(QcApprove,"QcApprove")
-            .MapPost(QcReject,"QcReject")
-            .MapPost(CommitteeList,"CommitteeList")
-            .MapGet(CommitteeDetail,"CommitteeDetail/{guid:guid}")
-            .MapPost(CommitteeCreate,"CommitteeCreate")
-            .MapPost(CommitteeEdit,"CommitteeEdit")
-            .MapPost(CommitteeLine,"CommitteeLine")
-            .MapPost(CommitteeSubmit,"CommitteeSubmit")
-            .MapPost(CommitteeApprove,"CommitteeApprove")
-            .MapPost(CommitteeReject,"CommitteeReject")
-            .MapPost(CommitteeClose,"CommitteeClose")
-            .MapGet(CommitteeOwners,"CommitteeOwners")
-            .MapPost(AuditList,"AuditList")
-            .MapGet(AuditDetail,"AuditDetail/{guid:guid}")
-            .MapPost(AuditCreate,"AuditCreate")
-            .MapPost(AuditEdit,"AuditEdit")
-            .MapPost(AuditLine,"AuditLine")
-            .MapPost(AuditSubmit,"AuditSubmit")
-            .MapPost(AuditApprove,"AuditApprove")
-            .MapPost(AuditReject,"AuditReject")
-            .MapPost(TrainingList,"TrainingList")
-            .MapGet(TrainingDetail,"TrainingDetail/{guid:guid}")
-            .MapPost(TrainingCreate,"TrainingCreate")
-            .MapPost(TrainingEdit,"TrainingEdit")
-            .MapPost(TrainingLine,"TrainingLine")
-            .MapPost(TrainingSubmit,"TrainingSubmit")
-            .MapPost(TrainingApprove,"TrainingApprove")
-            .MapPost(TrainingReject,"TrainingReject")
-            .MapGet(TrainingOwners,"TrainingOwners")
-            .MapPost(CommitteeProgress,"CommitteeProgress")
-            .MapPost(CommitteeVerify,"CommitteeVerify")
-            .MapPost(CommitteeReturn,"CommitteeReturn");
+            });
+        group.MapGet("Capabilities", Capabilities).WithName("HEMO.HemoQuality.Capabilities");
+        group.MapPost("EquipmentList", EquipmentList).WithName("HEMO.HemoQuality.EquipmentList");
+        group.MapGet("EquipmentDetail/{guid:guid}", EquipmentDetail).WithName("HEMO.HemoQuality.EquipmentDetail");
+        group.MapPost("EquipmentStats", EquipmentStats).WithName("HEMO.HemoQuality.EquipmentStats");
+        group.MapPost("Incidents", Incidents).WithName("HEMO.HemoQuality.Incidents");
+        group.MapPost("EquipmentCreate", EquipmentCreate).WithName("HEMO.HemoQuality.EquipmentCreate");
+        group.MapPost("EquipmentEdit", EquipmentEdit).WithName("HEMO.HemoQuality.EquipmentEdit");
+        group.MapPost("EquipmentService", EquipmentService).WithName("HEMO.HemoQuality.EquipmentService");
+        group.MapPost("EquipmentHold", EquipmentHold).WithName("HEMO.HemoQuality.EquipmentHold");
+        group.MapPost("EquipmentRelease", EquipmentRelease).WithName("HEMO.HemoQuality.EquipmentRelease");
+        group.MapPost("EquipmentArchive", EquipmentArchive).WithName("HEMO.HemoQuality.EquipmentArchive");
+        group.MapPost("IncidentReport", IncidentReport).WithName("HEMO.HemoQuality.IncidentReport");
+        group.MapPost("IncidentResolve", IncidentResolve).WithName("HEMO.HemoQuality.IncidentResolve");
+        group.MapPost("EquipmentTemperature", EquipmentTemperature).WithName("HEMO.HemoQuality.EquipmentTemperature");
+        group.MapGet("Facility", Facility).WithName("HEMO.HemoQuality.Facility");
+        group.MapPost("FacilitySave", FacilitySave).WithName("HEMO.HemoQuality.FacilitySave");
+        group.MapPost("Stats", Stats).WithName("HEMO.HemoQuality.Stats");
+        group.MapPost("QcList", QcList).WithName("HEMO.HemoQuality.QcList");
+        group.MapGet("QcDetail/{guid:guid}", QcDetail).WithName("HEMO.HemoQuality.QcDetail");
+        group.MapPost("QcCreate", QcCreate).WithName("HEMO.HemoQuality.QcCreate");
+        group.MapPost("QcEdit", QcEdit).WithName("HEMO.HemoQuality.QcEdit");
+        group.MapPost("QcLine", QcLine).WithName("HEMO.HemoQuality.QcLine");
+        group.MapPost("QcSubmit", QcSubmit).WithName("HEMO.HemoQuality.QcSubmit");
+        group.MapPost("QcApprove", QcApprove).WithName("HEMO.HemoQuality.QcApprove");
+        group.MapPost("QcReject", QcReject).WithName("HEMO.HemoQuality.QcReject");
+        group.MapPost("CommitteeList", CommitteeList).WithName("HEMO.HemoQuality.CommitteeList");
+        group.MapGet("CommitteeDetail/{guid:guid}", CommitteeDetail).WithName("HEMO.HemoQuality.CommitteeDetail");
+        group.MapPost("CommitteeCreate", CommitteeCreate).WithName("HEMO.HemoQuality.CommitteeCreate");
+        group.MapPost("CommitteeEdit", CommitteeEdit).WithName("HEMO.HemoQuality.CommitteeEdit");
+        group.MapPost("CommitteeLine", CommitteeLine).WithName("HEMO.HemoQuality.CommitteeLine");
+        group.MapPost("CommitteeSubmit", CommitteeSubmit).WithName("HEMO.HemoQuality.CommitteeSubmit");
+        group.MapPost("CommitteeApprove", CommitteeApprove).WithName("HEMO.HemoQuality.CommitteeApprove");
+        group.MapPost("CommitteeReject", CommitteeReject).WithName("HEMO.HemoQuality.CommitteeReject");
+        group.MapPost("CommitteeClose", CommitteeClose).WithName("HEMO.HemoQuality.CommitteeClose");
+        group.MapGet("CommitteeOwners", CommitteeOwners).WithName("HEMO.HemoQuality.CommitteeOwners");
+        group.MapPost("AuditList", AuditList).WithName("HEMO.HemoQuality.AuditList");
+        group.MapGet("AuditDetail/{guid:guid}", AuditDetail).WithName("HEMO.HemoQuality.AuditDetail");
+        group.MapPost("AuditCreate", AuditCreate).WithName("HEMO.HemoQuality.AuditCreate");
+        group.MapPost("AuditEdit", AuditEdit).WithName("HEMO.HemoQuality.AuditEdit");
+        group.MapPost("AuditLine", AuditLine).WithName("HEMO.HemoQuality.AuditLine");
+        group.MapPost("AuditSubmit", AuditSubmit).WithName("HEMO.HemoQuality.AuditSubmit");
+        group.MapPost("AuditApprove", AuditApprove).WithName("HEMO.HemoQuality.AuditApprove");
+        group.MapPost("AuditReject", AuditReject).WithName("HEMO.HemoQuality.AuditReject");
+        group.MapPost("TrainingList", TrainingList).WithName("HEMO.HemoQuality.TrainingList");
+        group.MapGet("TrainingDetail/{guid:guid}", TrainingDetail).WithName("HEMO.HemoQuality.TrainingDetail");
+        group.MapPost("TrainingCreate", TrainingCreate).WithName("HEMO.HemoQuality.TrainingCreate");
+        group.MapPost("TrainingEdit", TrainingEdit).WithName("HEMO.HemoQuality.TrainingEdit");
+        group.MapPost("TrainingLine", TrainingLine).WithName("HEMO.HemoQuality.TrainingLine");
+        group.MapPost("TrainingSubmit", TrainingSubmit).WithName("HEMO.HemoQuality.TrainingSubmit");
+        group.MapPost("TrainingApprove", TrainingApprove).WithName("HEMO.HemoQuality.TrainingApprove");
+        group.MapPost("TrainingReject", TrainingReject).WithName("HEMO.HemoQuality.TrainingReject");
+        group.MapGet("TrainingOwners", TrainingOwners).WithName("HEMO.HemoQuality.TrainingOwners");
+        group.MapPost("CommitteeProgress", CommitteeProgress).WithName("HEMO.HemoQuality.CommitteeProgress");
+        group.MapPost("CommitteeVerify", CommitteeVerify).WithName("HEMO.HemoQuality.CommitteeVerify");
+        group.MapPost("CommitteeReturn", CommitteeReturn).WithName("HEMO.HemoQuality.CommitteeReturn");
     }
     public async Task<Ok<QualityCapabilities>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new QualityCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<EquipmentRow>>> EquipmentList(ISender sender,EquipmentFilter input,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new EquipmentListQuery(input),ct));

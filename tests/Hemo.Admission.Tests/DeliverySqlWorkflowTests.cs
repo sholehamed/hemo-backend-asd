@@ -71,9 +71,9 @@ public class DeliverySqlWorkflowTests
             Assert.Equal(14,users.Count);
             foreach(var account in accounts)
             {
-                var u=users.Single(x=>x.User.Username==account.Username);
-                Assert.True(u.Role.Gkey>2);
-                var permissions=await db.RoleAccess.Where(x=>x.RoleGUID==u.RoleGUID).Select(x=>x.ApiGUID).ToListAsync(ct);
+                var assigned=users.Single(x=>x.User.Username==account.Username);
+                Assert.True(assigned.Role.Gkey>2);
+                var permissions=await db.RoleAccess.Where(x=>x.RoleGUID==assigned.RoleGUID).Select(x=>x.ApiGUID).ToListAsync(ct);
                 Assert.Equal(account.Permissions.Length,permissions.Count);
                 Assert.DoesNotContain(permissions,p=>p==null);
             }
@@ -123,12 +123,12 @@ public class DeliverySqlWorkflowTests
             async Task<UnitDetail> Unit(){db.ChangeTracker.Clear();return await bq.Handle(new BankUnitQuery(unit),ct);}
             async Task BankAction(string action,Guid? req=null,byte[]? version=null)
             {
-                var u=await Unit();await bank.Handle(new BankUnitActionCommand(new(unit,u.Unit.Version,action,req,version,"Synthetic action"),action),ct);
+                var snapshot=await Unit();await bank.Handle(new BankUnitActionCommand(new(unit,snapshot.Unit.Version,action,req,version,"Synthetic action"),action),ct);
             }
             Actor("hemo.bank.supervisor");await BankAction("Inspect");
             Actor("hemo.bloodbank");d=await rq.Handle(new BloodRequestBankDetailQuery(request),ct);var rv=d.Version;
-            var u=await Unit();
-            await bank.Handle(new RecordBankLabCommand(new(unit,u.Unit.Version,request,rv,"FIX","Confirmed","O+","Synthetic method","NonReactive","NonReactive","NonReactive","NonReactive","NonReactive","FIX-REPORT","Accepted","Synthetic fixture")),ct);
+            var bankSnapshot=await Unit();
+            await bank.Handle(new RecordBankLabCommand(new(unit,bankSnapshot.Unit.Version,request,rv,"FIX","Confirmed","O+","Synthetic method","NonReactive","NonReactive","NonReactive","NonReactive","NonReactive","FIX-REPORT","Accepted","Synthetic fixture")),ct);
             await BankAction("Reserve",request,rv);await BankAction("Ready");
             Actor("hemo.bank.supervisor");
             var candidate=Assert.Single((await tq.Handle(new DispatchCandidatesQuery(),ct)).Data);

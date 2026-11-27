@@ -470,7 +470,54 @@ public class HemoDemoSeedTests
             var count=await db.RoleAccess.CountAsync(ct);var mappings=await db.MenuApi.CountAsync(ct);
             await HemoDemoSeed.ApplyAsync(db,cfg,ct);
             Assert.Equal(count,await db.RoleAccess.CountAsync(ct));Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));Assert.Equal(users,await db.User.CountAsync(ct));
+            var unitCfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodBank"]="true",["HemoSeed:IncludeBankUnitPages"]="true"
+            }).Build();
+            var unitPaths=HemoBankReadRouteSeed.UnitRoutes.Select(r=>r.Path).ToArray();
+            Assert.False(await db.Menu.AnyAsync(m=>unitPaths.Contains(m.routerLink),ct));
+            await HemoDemoSeed.ApplyAsync(db,unitCfg,ct);db.ChangeTracker.Clear();
+            var unitMenus=await db.Menu.Where(m=>unitPaths.Contains(m.routerLink)).ToListAsync(ct);
+            Assert.Equal(2,unitMenus.Count);
+            Assert.All(unitMenus,m=>{Assert.False(m.IsPublic);Assert.Equal(root.GUID,m.PMenuGUID);});
+            Assert.False(Assert.Single(unitMenus.Where(m=>m.routerLink=="/hemo/bank/unit/:guid")).ShowInMenu);
+            Assert.True(before.SetEquals(await db.RoleAccess.Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)));
+            foreach(var route in HemoBankReadRouteSeed.UnitRoutes)
+            {
+                var leaf=Assert.Single(unitMenus.Where(m=>m.routerLink==route.Path));
+                var actual=await db.RoleAccess.Where(r=>r.MenuGUID==leaf.GUID).ToListAsync(ct);
+                var expected=new HashSet<(Guid,Guid?)>();
+                foreach(var account in accounts.Where(a=>HemoBankReadRouteSeed.CanOpen(route,a.Permissions)))
+                {
+                    var roleId=roles.Single(r=>r.ConvertID=="HEMO-DEMO-ST02:"+account.Key).GUID;
+                    foreach(var key in route.Mapped.Where(k=>account.Permissions.Contains(k)))
+                    {
+                        var endpoint=HemoDemoSeed.BankEndpoints.Concat(HemoDemoSeed.BloodRequestEndpoints).Single(e=>e.Key==key);
+                        var api=await db.Api.SingleAsync(a=>a.APITypeName==endpoint.Method&&a.DownstreamPathTemplate==endpoint.Path,ct);
+                        expected.Add((roleId,api.GUID));
+                    }
+                }
+                Assert.True(expected.SetEquals(actual.Select(g=>(g.RoleGUID,g.ApiGUID))));
+            }
+            var unitCount=await db.RoleAccess.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,unitCfg,ct);await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(unitCount,await db.RoleAccess.CountAsync(ct));Assert.Equal(users,await db.User.CountAsync(ct));
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
+    }
+
+    [Fact]
+    public void BankUnitRoutesRequireDetailAndPreserveSupervisorSeparation()
+    {
+        var receive=HemoBankReadRouteSeed.UnitRoutes.Single(r=>r.Path=="/hemo/bank/receive");
+        var unit=HemoBankReadRouteSeed.UnitRoutes.Single(r=>r.Path=="/hemo/bank/unit/:guid");
+        Assert.False(HemoBankReadRouteSeed.CanOpen(receive,new[]{"bank-receive"}));
+        Assert.True(HemoBankReadRouteSeed.CanOpen(receive,HemoDemoSeed.BankOperatorKeys));
+        Assert.True(HemoBankReadRouteSeed.CanOpen(unit,HemoDemoSeed.BankOperatorKeys));
+        Assert.True(HemoBankReadRouteSeed.CanOpen(unit,HemoDemoSeed.BankSupervisorKeys));
+        Assert.False(HemoBankReadRouteSeed.CanOpen(unit,HemoDemoSeed.DashboardManager.Permissions));
+        Assert.DoesNotContain("bank-inspect",HemoDemoSeed.BankOperatorKeys);
+        Assert.DoesNotContain("bank-discard",HemoDemoSeed.BankOperatorKeys);
+        Assert.Contains("bank-inspect",unit.Mapped);Assert.Contains("bank-discard",unit.Mapped);
+        Assert.DoesNotContain("tx-dispatch",unit.Mapped);
     }
 }

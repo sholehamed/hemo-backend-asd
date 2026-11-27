@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: sholehamed/hemo-frontend-asd
-          ref: d513ef5d2ae5851f1bf421f0b88ca5faa8926614
+          ref: b325b384789cb316bb50593a942647d28487772a
           path: hemo-browser-frontend
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -50,9 +50,12 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/hemo-browser" --no-save --package-lock=false playwright@1.51.1
           node "$RUNNER_TEMP/hemo-browser/node_modules/playwright/cli.js" install --with-deps chromium
           cp tests/browser/r03-live-browser.mjs "$RUNNER_TEMP/hemo-browser/"
+          cp hemo-browser-frontend/tests/browser/r03-ui-review.mjs "$RUNNER_TEMP/hemo-browser/"
+          mkdir -p "$RUNNER_TEMP/hemo-ui-screenshots"
+          echo "HEMO_UI_SCREENSHOTS=$RUNNER_TEMP/hemo-ui-screenshots" >> "$GITHUB_ENV"
           test -f "$GITHUB_WORKSPACE/hemo-browser-frontend/dist/sakai-ng/browser/index.html"
           echo "HEMO_BROWSER_DIST=$GITHUB_WORKSPACE/hemo-browser-frontend/dist/sakai-ng/browser" >> "$GITHUB_ENV"
-          echo "HEMO_BROWSER_SCRIPT=$RUNNER_TEMP/hemo-browser/r03-live-browser.mjs" >> "$GITHUB_ENV"
+          echo "HEMO_BROWSER_SCRIPT=$RUNNER_TEMP/hemo-browser/r03-ui-review.mjs" >> "$GITHUB_ENV"
       - name: Start isolated SQL Server on loopback
         shell: bash
         run: |
@@ -70,5 +73,12 @@ jobs:
           exit 1
       - name: Run continuous real HTTP and browser acceptance
         run: dotnet test tests/Hemo.Admission.Tests -c Release --filter "FullyQualifiedName~IsolatedHttpAcceptanceTests" --logger "console;verbosity=normal"
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: hemo-r03-release-synthetic-screenshots
+          path: ${{ runner.temp }}/hemo-ui-screenshots/*.png
+          if-no-files-found: error
+          retention-days: 7
       - if: always()
         run: docker rm -f hemo-browser-sql || true

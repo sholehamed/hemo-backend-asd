@@ -188,11 +188,12 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
-        var includeQualitySamples=config.GetValue<bool>("HemoSeed:IncludeQualitySamples");
+        var includeDeliverySamples=config.GetValue<bool>("HemoSeed:IncludeDeliverySamples");
+        var includeQualitySamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeQualitySamples");
         var includeQuality=includeQualitySamples||config.GetValue<bool>("HemoSeed:IncludeQuality");
-        var includeHvSamples=config.GetValue<bool>("HemoSeed:IncludeHemovigilanceSamples");
+        var includeHvSamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilanceSamples");
         var includeHv=includeQuality||includeHvSamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilance");
-        var includeSamples=config.GetValue<bool>("HemoSeed:IncludeTransfusionSamples");
+        var includeSamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeTransfusionSamples");
         var includeTransfusion=includeHv||includeSamples||config.GetValue<bool>("HemoSeed:IncludeTransfusion");
         var includeBank=includeTransfusion||config.GetValue<bool>("HemoSeed:IncludeBloodBank");
         var includeRequests=includeBank||config.GetValue<bool>("HemoSeed:IncludeBloodRequests");

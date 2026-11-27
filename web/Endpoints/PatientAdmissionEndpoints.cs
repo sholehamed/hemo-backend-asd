@@ -15,7 +15,7 @@ public class PatientAdmission : EndpointGroupBase
 {
     public override void Map(WebApplication app)
     {
-        app.MapGroup(this).RequireAuthorization()
+        var group=app.MapGroup(this).RequireAuthorization()
             .AddEndpointFilter(async (context,next) =>
             {
                 var http=context.HttpContext;
@@ -26,18 +26,18 @@ public class PatientAdmission : EndpointGroupBase
                    !Guid.TryParse(key,out _) || !service.CheckToken(key!))
                     return Results.Unauthorized();
                 return await next(context);
-            })
-            .MapGet(GetCapabilities,"Capabilities")
-            .MapPost(BindPatientAdmissionPaging,"BindPaging")
-            .MapPost(CreatePatientAdmission)
-            .MapPut(UpdatePatientAdmission)
-            .MapPut(UpdatePatientIdentity,"PatientIdentity")
-            .MapGet(FindPatientAdmission,"{guid:guid}")
-            .MapGet(FindPatientByIdentity,"FindPatient")
-            .MapGet(GetPatientAdmissionHistory,"{guid:guid}/History")
-            .MapGet(GetPatientAdmissionReviews,"{guid:guid}/Reviews")
-            .MapPost(GetPatientAdmissionStats,"Stats")
-            .MapPost(ReviewPatientAdmission,"Review");
+            });
+        group.MapGet("Capabilities", GetCapabilities).WithName("HEMO.PatientAdmission.GetCapabilities");
+        group.MapPost("BindPaging", BindPatientAdmissionPaging).WithName("HEMO.PatientAdmission.BindPatientAdmissionPaging");
+        group.MapPost("", CreatePatientAdmission).WithName("HEMO.PatientAdmission.CreatePatientAdmission");
+        group.MapPut("", UpdatePatientAdmission).WithName("HEMO.PatientAdmission.UpdatePatientAdmission");
+        group.MapPut("PatientIdentity", UpdatePatientIdentity).WithName("HEMO.PatientAdmission.UpdatePatientIdentity");
+        group.MapGet("{guid:guid}", FindPatientAdmission).WithName("HEMO.PatientAdmission.FindPatientAdmission");
+        group.MapGet("FindPatient", FindPatientByIdentity).WithName("HEMO.PatientAdmission.FindPatientByIdentity");
+        group.MapGet("{guid:guid}/History", GetPatientAdmissionHistory).WithName("HEMO.PatientAdmission.GetPatientAdmissionHistory");
+        group.MapGet("{guid:guid}/Reviews", GetPatientAdmissionReviews).WithName("HEMO.PatientAdmission.GetPatientAdmissionReviews");
+        group.MapPost("Stats", GetPatientAdmissionStats).WithName("HEMO.PatientAdmission.GetPatientAdmissionStats");
+        group.MapPost("Review", ReviewPatientAdmission).WithName("HEMO.PatientAdmission.ReviewPatientAdmission");
     }
     public async Task<Ok<AdmissionCapabilities>> GetCapabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new AdmissionCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<AdmissionView>>> BindPatientAdmissionPaging(ISender sender,PatientAdmissionWithPaginationQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));

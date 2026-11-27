@@ -47,7 +47,7 @@ public class HvQueryHandler(HemoReactionService cases,UserRoleService roles,Auth
     public async Task<HvCapabilities> Handle(HvCapabilitiesQuery f,CancellationToken ct)
     {
         var a=await AdmissionScope.GetAssignmentAsync(roles,auth,ct);Task<bool> Can(string p,string method="post")=>HvAccess.Can(roles,a,method,"/"+p,ct);
-        return new(await Can("List"),await Can("Detail/{guid}","get"),await Can("Stats"),await Can("Candidates"),await Can("Report"),await Can("Observe"),await Can("DoctorReview"),await Can("BankReview"),await Can("Investigate"),await Can("ReturnToDoctor"),await Can("PublishRca"),await Can("AssignCapa"),await Can("Owners","get"),await Can("CapaProgress"),await Can("CapaVerify"),await Can("Close"),await Can("External"),await Can("Reports"),await Can("Archive"),await Can("ReportExternal"),a.UserGuid);
+        return new(await Can("List"),await Can("Detail/{guid}","get"),await Can("Stats"),await Can("Candidates"),await Can("Report"),await Can("Observe"),await Can("DoctorReview"),await Can("BankReview"),await Can("Investigate"),await Can("ReturnToDoctor"),await Can("PublishRca"),await Can("AssignCapa"),await Can("Owners","get"),await Can("CapaProgress"),await Can("CapaVerify"),await Can("Close"),await Can("External"),await Can("Reports"),await Can("Archive"),await Can("ReportExternal"),a.UserGuid,await Can("ReportDetail/{guid}","get"));
     }
     public async Task<PaginatedList<HvReportRow>> Handle(HvReportsQuery f,CancellationToken ct)
     {

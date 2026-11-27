@@ -11,7 +11,7 @@ public class BloodRequest : EndpointGroupBase
 {
     public override void Map(WebApplication app)
     {
-        app.MapGroup(this).RequireAuthorization()
+        var group=app.MapGroup(this).RequireAuthorization()
             .AddEndpointFilter(async (context,next) =>
             {
                 var http=context.HttpContext;
@@ -22,13 +22,19 @@ public class BloodRequest : EndpointGroupBase
                    !Guid.TryParse(key,out _) || !service.CheckToken(key!))
                     return Results.Unauthorized();
                 return await next(context);
-            })
-            .MapGet(Capabilities,"Capabilities")
-            .MapPost(List,"BindPaging").MapPost(Stats,"Stats")
-            .MapGet(Detail,"{guid:guid}")
-            .MapPost(BankQueue,"BankQueue").MapGet(BankDetail,"Bank/{guid:guid}")
-            .MapPost(CreateNurse,"Nurse").MapPost(CreateDoctor,"Doctor")
-            .MapPut(Update).MapPost(Submit,"Submit").MapPost(Cancel,"Cancel").MapPost(Decide,"Decide");
+            });
+        group.MapGet("Capabilities", Capabilities).WithName("HEMO.BloodRequest.Capabilities");
+        group.MapPost("BindPaging", List).WithName("HEMO.BloodRequest.List");
+        group.MapPost("Stats", Stats).WithName("HEMO.BloodRequest.Stats");
+        group.MapGet("{guid:guid}", Detail).WithName("HEMO.BloodRequest.Detail");
+        group.MapPost("BankQueue", BankQueue).WithName("HEMO.BloodRequest.BankQueue");
+        group.MapGet("Bank/{guid:guid}", BankDetail).WithName("HEMO.BloodRequest.BankDetail");
+        group.MapPost("Nurse", CreateNurse).WithName("HEMO.BloodRequest.CreateNurse");
+        group.MapPost("Doctor", CreateDoctor).WithName("HEMO.BloodRequest.CreateDoctor");
+        group.MapPut("", Update).WithName("HEMO.BloodRequest.Update");
+        group.MapPost("Submit", Submit).WithName("HEMO.BloodRequest.Submit");
+        group.MapPost("Cancel", Cancel).WithName("HEMO.BloodRequest.Cancel");
+        group.MapPost("Decide", Decide).WithName("HEMO.BloodRequest.Decide");
     }
     public async Task<Ok<RequestCapabilities>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new BloodRequestCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<RequestRow>>> List(ISender sender,BloodRequestListQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));

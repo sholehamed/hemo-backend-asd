@@ -10,7 +10,7 @@ public class Hemovigilance : EndpointGroupBase
 {
     public override void Map(WebApplication app)
     {
-        app.MapGroup(this).RequireAuthorization()
+        var group=app.MapGroup(this).RequireAuthorization()
             .AddEndpointFilter(async (context,next) =>
             {
                 var http=context.HttpContext;
@@ -21,10 +21,30 @@ public class Hemovigilance : EndpointGroupBase
                    !Guid.TryParse(key,out _) || !service.CheckToken(key!))
                     return Results.Unauthorized();
                 return await next(context);
-            })
-            .MapGet(Capabilities,"Capabilities").MapPost(List,"List").MapGet(Detail,"Detail/{guid:guid}").MapPost(Stats,"Stats").MapPost(Candidates,"Candidates").MapGet(Owners,"Owners")
-            .MapPost(Report,"Report").MapPost(AssignCapa,"AssignCapa").MapPost(Reports,"Reports").MapGet(ReportDetail,"ReportDetail/{guid:guid}").MapPost(Archive,"Archive").MapPost(ReportExternal,"ReportExternal")
-            .MapPost(Observe,"Observe").MapPost(DoctorReview,"DoctorReview").MapPost(BankReview,"BankReview").MapPost(Investigate,"Investigate").MapPost(ReturnToDoctor,"ReturnToDoctor").MapPost(PublishRca,"PublishRca").MapPost(Close,"Close").MapPost(External,"External").MapPost(CapaProgress,"CapaProgress").MapPost(CapaVerify,"CapaVerify").MapPost(CapaReject,"CapaReject");
+            });
+        group.MapGet("Capabilities", Capabilities).WithName("HEMO.Hemovigilance.Capabilities");
+        group.MapPost("List", List).WithName("HEMO.Hemovigilance.List");
+        group.MapGet("Detail/{guid:guid}", Detail).WithName("HEMO.Hemovigilance.Detail");
+        group.MapPost("Stats", Stats).WithName("HEMO.Hemovigilance.Stats");
+        group.MapPost("Candidates", Candidates).WithName("HEMO.Hemovigilance.Candidates");
+        group.MapGet("Owners", Owners).WithName("HEMO.Hemovigilance.Owners");
+        group.MapPost("Report", Report).WithName("HEMO.Hemovigilance.Report");
+        group.MapPost("AssignCapa", AssignCapa).WithName("HEMO.Hemovigilance.AssignCapa");
+        group.MapPost("Reports", Reports).WithName("HEMO.Hemovigilance.Reports");
+        group.MapGet("ReportDetail/{guid:guid}", ReportDetail).WithName("HEMO.Hemovigilance.ReportDetail");
+        group.MapPost("Archive", Archive).WithName("HEMO.Hemovigilance.Archive");
+        group.MapPost("ReportExternal", ReportExternal).WithName("HEMO.Hemovigilance.ReportExternal");
+        group.MapPost("Observe", Observe).WithName("HEMO.Hemovigilance.Observe");
+        group.MapPost("DoctorReview", DoctorReview).WithName("HEMO.Hemovigilance.DoctorReview");
+        group.MapPost("BankReview", BankReview).WithName("HEMO.Hemovigilance.BankReview");
+        group.MapPost("Investigate", Investigate).WithName("HEMO.Hemovigilance.Investigate");
+        group.MapPost("ReturnToDoctor", ReturnToDoctor).WithName("HEMO.Hemovigilance.ReturnToDoctor");
+        group.MapPost("PublishRca", PublishRca).WithName("HEMO.Hemovigilance.PublishRca");
+        group.MapPost("Close", Close).WithName("HEMO.Hemovigilance.Close");
+        group.MapPost("External", External).WithName("HEMO.Hemovigilance.External");
+        group.MapPost("CapaProgress", CapaProgress).WithName("HEMO.Hemovigilance.CapaProgress");
+        group.MapPost("CapaVerify", CapaVerify).WithName("HEMO.Hemovigilance.CapaVerify");
+        group.MapPost("CapaReject", CapaReject).WithName("HEMO.Hemovigilance.CapaReject");
     }
     public async Task<Ok<HvCapabilities>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new HvCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<HvCaseRow>>> List(ISender sender,HvFilters filters,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new HvListQuery(filters),ct));

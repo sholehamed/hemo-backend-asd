@@ -67,4 +67,67 @@ public class HemoDemoSeedTests
         }
         finally {await db.Database.EnsureDeletedAsync(ct);}
     }
+
+    [Fact]
+    public void AdmissionRoutePolicyRequiresExistingEndpointPermissions()
+    {
+        Assert.Equal(8,HemoAdmissionRouteSeed.Routes.Length);
+        Assert.Equal(8,HemoAdmissionRouteSeed.Routes.Select(r=>r.Path).Distinct().Count());
+        var keys=HemoDemoSeed.Endpoints.Select(e=>e.Key).ToHashSet();
+        foreach(var route in HemoAdmissionRouteSeed.Routes)
+        {
+            Assert.All(route.Required,key=>Assert.Contains(key,keys));
+            Assert.All(route.Optional,key=>Assert.Contains(key,keys));
+            Assert.NotEmpty(route.Required);
+            Assert.Equal(route.Path.Contains(':'),!route.ShowInMenu);
+        }
+        var manager=HemoDemoSeed.DashboardManager.Permissions;
+        Assert.Equal("/admission/stats",Assert.Single(HemoAdmissionRouteSeed.Routes.Where(r=>HemoAdmissionRouteSeed.CanOpen(r,manager))).Path);
+        var viewer=HemoDemoSeed.Accounts.Single(a=>a.Key=="Viewer").Permissions;
+        Assert.DoesNotContain(HemoAdmissionRouteSeed.Routes.Where(r=>HemoAdmissionRouteSeed.CanOpen(r,viewer)),r=>r.Path=="/admission/new");
+    }
+
+    [Fact]
+    [Trait("Category","SqlServer")]
+    public async Task AdmissionRouteSeedIsOptInAndDoesNotExpandEndpointGrants()
+    {
+        var connection=Environment.GetEnvironmentVariable("HEMO_TEST_SQL");Assert.False(string.IsNullOrWhiteSpace(connection));
+        var cs=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection){InitialCatalog="Hemo_R02_"+Guid.NewGuid().ToString("N")};
+        var auth=new AuthService(new HttpContextAccessor());
+        var options=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
+            .AddInterceptors(new Audit(),new DispatchDomainEventsInterceptor(null!)).Options;
+        await using var db=new ApplicationDbContext(options,auth);var ct=CancellationToken.None;
+        try
+        {
+            await db.Database.MigrateAsync(ct);
+            var accounts=HemoDemoSeed.DemoAccounts(true,false);
+            var secrets=accounts.ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
+            secrets["HemoSeed:IncludeBloodRequests"]="true";
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(secrets).Build(),ct);
+            Assert.False(await db.Menu.AnyAsync(m=>m.routerLink=="/admission/new",ct));
+            var before=(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)).ToHashSet();
+            var users=await db.User.CountAsync(ct);
+            var cfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeAdmissionRouteMenus"]="true"
+            }).Build();
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            var after=(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)).ToHashSet();
+            Assert.True(before.SetEquals(after));
+            Assert.Equal(users,await db.User.CountAsync(ct));
+            var count=await db.RoleAccess.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(count,await db.RoleAccess.CountAsync(ct));
+            var menu=await db.Menu.SingleAsync(m=>m.routerLink=="/admission/detail/:guid",ct);
+            Assert.False(menu.ShowInMenu);Assert.False(menu.IsPublic);
+            var viewer=await db.Role.SingleAsync(r=>r.ConvertID=="HEMO-DEMO-ST02:Viewer",ct);
+            var admission=await db.Role.SingleAsync(r=>r.ConvertID=="HEMO-DEMO-ST02:Admission",ct);
+            var nurse=await db.Role.SingleAsync(r=>r.ConvertID=="HEMO-DEMO-ST02:Nurse",ct);
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.RoleGUID==viewer.GUID&&r.Menu.routerLink=="/admission/new",ct));
+            Assert.True(await db.RoleAccess.AnyAsync(r=>r.RoleGUID==admission.GUID&&r.Menu.routerLink=="/admission/new",ct));
+            Assert.True(await db.RoleAccess.AnyAsync(r=>r.RoleGUID==nurse.GUID&&r.MenuGUID==menu.GUID,ct));
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.RoleGUID==nurse.GUID&&r.Menu.routerLink=="/admission/discharge",ct));
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.Menu.ConvertID!=null&&r.Menu.ConvertID.StartsWith("HEMO-R02-ADMISSION:")&&r.ApiGUID==null,ct));
+        }
+        finally {await db.Database.EnsureDeletedAsync(ct);}
+    }
 }

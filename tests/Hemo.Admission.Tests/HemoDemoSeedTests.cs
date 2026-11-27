@@ -130,4 +130,61 @@ public class HemoDemoSeedTests
         }
         finally {await db.Database.EnsureDeletedAsync(ct);}
     }
+
+    [Fact]
+    [Trait("Category","SqlServer")]
+    public async Task CompanyMenuPilotExposesOnlyActiveReportUnderHemoRoot()
+    {
+        var connection=Environment.GetEnvironmentVariable("HEMO_TEST_SQL");Assert.False(string.IsNullOrWhiteSpace(connection));
+        var cs=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection){InitialCatalog="Hemo_Menu_"+Guid.NewGuid().ToString("N")};
+        var auth=new AuthService(new HttpContextAccessor());
+        var options=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
+            .AddInterceptors(new Audit(),new DispatchDomainEventsInterceptor(null!)).Options;
+        await using var db=new ApplicationDbContext(options,auth);var ct=CancellationToken.None;
+        try
+        {
+            await db.Database.MigrateAsync(ct);
+            var accounts=HemoDemoSeed.DemoAccounts(true,false);
+            var secrets=accounts.ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
+            secrets["HemoSeed:IncludeBloodRequests"]="true";
+            secrets["HemoSeed:IncludeAdmissionRouteMenus"]="true";
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(secrets).Build(),ct);
+            var stats=await db.Menu.SingleAsync(m=>m.routerLink=="/admission/stats",ct);
+            var statsId=stats.GUID;
+            Assert.Null(stats.PMenuGUID);
+            var grants=(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.MenuGUID,r.ApiGUID}).ToListAsync(ct)).ToHashSet();
+            var mappings=await db.MenuApi.CountAsync(ct);
+            var cfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeCompanyMenuPilot"]="true"
+            }).Build();
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            db.ChangeTracker.Clear();
+            var root=await db.Menu.SingleAsync(m=>m.routerLink=="/Hemo",ct);
+            Assert.Null(root.PMenuGUID);Assert.False(root.IsPublic);Assert.True(root.ShowInMenu);
+            var child=Assert.Single(await db.Menu.Where(m=>m.PMenuGUID==root.GUID).ToListAsync(ct));
+            Assert.Equal(statsId,child.GUID);Assert.Equal("/admission/stats",child.routerLink);
+            Assert.Equal(root.Path+child.Gkey+"/",child.Path);Assert.Equal(root.Level+1,child.Level);
+            var viewer=await db.Role.SingleAsync(r=>r.ConvertID=="HEMO-DEMO-ST02:Viewer",ct);
+            var nurse=await db.Role.SingleAsync(r=>r.ConvertID=="HEMO-DEMO-ST02:Nurse",ct);
+            // The exact existing MenuBindUserMenu predicate: only ancestors of
+            // visible granted children are visible, without a direct root grant.
+            async Task<bool> RootVisible(Guid role)=>await db.Menu.AnyAsync(a=>a.GUID==root.GUID&&a.ShowInMenu&&
+                (a.RoleAccess.Any(b=>b.RoleGUID==role)||db.Menu.Any(b=>b.Path.StartsWith(a.Path)&&b.ShowInMenu&&
+                (b.RoleAccess.Any(c=>c.RoleGUID==role)||b.IsPublic))),ct);
+            Assert.True(await RootVisible(viewer.GUID));Assert.False(await RootVisible(nurse.GUID));
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.MenuGUID==root.GUID,ct));
+            Assert.False(await db.MenuApi.AnyAsync(r=>r.MenuGUID==root.GUID,ct));
+            Assert.True(grants.SetEquals(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.MenuGUID,r.ApiGUID}).ToListAsync(ct)));
+            Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(1,await db.Menu.CountAsync(m=>m.routerLink=="/Hemo",ct));
+            Assert.True(grants.SetEquals(await db.RoleAccess.Select(r=>new {r.RoleGUID,r.MenuGUID,r.ApiGUID}).ToListAsync(ct)));
+            // Re-running with the previous admission-only flag must not detach the leaf.
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeAdmissionRouteMenus"]="true"
+            }).Build(),ct);
+            Assert.Equal(root.GUID,(await db.Menu.SingleAsync(m=>m.GUID==statsId,ct)).PMenuGUID);
+        }
+        finally{await db.Database.EnsureDeletedAsync(ct);}
+    }
 }

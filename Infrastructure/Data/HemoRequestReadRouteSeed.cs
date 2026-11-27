@@ -13,6 +13,10 @@ public static class HemoRequestReadRouteSeed
         new("/hemo/requests/approval","کارتابل تأیید پزشک","pi pi-check-circle",true,["request-list","request-decide"],["request-list"]),
         new("/hemo/requests/doctor","کارتابل پزشک","pi pi-user",false,["request-list","request-decide"],["request-list"])
     ];
+    public static readonly Route[] DetailRoutes=[
+        new("/hemo/requests/detail/:guid","جزئیات درخواست خون","pi pi-file",false,["request-detail"],["request-detail","request-submit","request-cancel","request-decide"]),
+        new("/hemo/requests/bank/:guid","جزئیات صف بانک خون","pi pi-inbox",false,["request-bank-detail"],["request-bank-detail"])
+    ];
     public static bool CanOpen(Route route,IEnumerable<string> keys)
     {
         var allowed=keys.ToHashSet(StringComparer.Ordinal);
@@ -20,7 +24,7 @@ public static class HemoRequestReadRouteSeed
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Menu original,
-        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct)
+        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeDetailPages=false)
     {
         const string rootMarker="HEMO-R02-COMPANY-MENU";
         const string prefix="HEMO-R02-REQUEST:";
@@ -57,7 +61,7 @@ public static class HemoRequestReadRouteSeed
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(key=>apis.TryGetValue(key,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in Routes)
+        foreach(var route in includeDetailPages?Routes.Concat(DetailRoutes):Routes)
         {
             var marker=prefix+route.Path;
             var menu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);

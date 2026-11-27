@@ -82,8 +82,8 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             Assert.True(File.Exists(browserScript),"Browser runner is required.");
             Assert.True(Directory.Exists(browserRoot)&&File.Exists(Path.Combine(browserRoot!,"index.html")),"Built Angular browser directory is required.");
         }
-        // Angular's existing environment points at 127.0.0.1:1002. Only this opt-in CI host uses that port.
-        builder.WebHost.ConfigureKestrel(o=>o.Listen(IPAddress.Loopback,browserEnabled?1002:0));
+        // CI builds Angular with this loopback-only, non-privileged port. Normal HTTP tests keep a dynamic port.
+        builder.WebHost.ConfigureKestrel(o=>o.Listen(IPAddress.Loopback,browserEnabled?18002:0));
         builder.AddApplicationServices();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<Audit>();

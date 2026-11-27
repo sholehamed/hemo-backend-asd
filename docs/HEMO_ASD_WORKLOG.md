@@ -146,3 +146,6 @@
 - Concurrent integration fixture uses independent IHttpContextAccessor instances to avoid shared AsyncLocal state between synthetic actors. No production change.
 
 - Concurrent SQL test exposed actual SQL Server deadlock, wrapped by EF in InvalidOperationException → DbUpdateException → provider exception. Handle the wrapped database failure only within bank unit operation; fail safely, rollback, return refresh/review error instead of blindly retrying. Keep concurrency test and re-run.
+
+## ST-05 | ST05-01
+- بررسی ۹ صفحه Raw و قرارداد ST04؛ سه موجودیت حواله، رویداد و پایش، FK، unique unit، rowversion و migration؛ قواعد وضعیت و تست‌ها. در انتظار CI.

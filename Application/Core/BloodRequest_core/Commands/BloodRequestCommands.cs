@@ -81,18 +81,19 @@ public class BloodRequestCommandHandler(BloodRequestService requests,UserRoleSer
         var user=await BloodRequestAccess.Require(roles,auth,"post",endpoint,true,ct);
         Validate(new RequestInputValidator(),input);
         if(!BloodRequestWorkflow.SourceAllowsForm(source,input.FormType))throw Error("این فرم برای نوع ثبت‌کننده مجاز نیست.");
+        await using var transaction=await ((DbContext)Db).Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         var admission=await Admission(input.PatientAdmissionGuid,user,ct);
         var existing=await requests.Table.AsNoTracking().SingleOrDefaultAsync(x=>x.ClientRequestId==input.ClientRequestId,ct);
         if(existing!=null)
         {
             Owner(existing,user);
             if(existing.PatientAdmissionGUID!=admission.GUID||existing.Source!=source)throw Error("شناسه ثبت قبلاً استفاده شده است.");
-            return existing.GUID;
+            await transaction.CommitAsync(ct);return existing.GUID;
         }
         if(admission.Status!="Active")throw Error("پذیرش فعال نیست.");
         var r=new BloodRequest{PatientAdmissionGUID=admission.GUID,ClientRequestId=input.ClientRequestId,RequestNumber="BR-"+Guid.NewGuid().ToString("N").ToUpperInvariant(),RequesterUserGUID=user.UserGuid,RequesterRoleGUID=user.RoleGuid,Source=source,Status=BloodRequestWorkflow.Draft};
         Apply(r,input,Array.Empty<BloodRequestItem>());requests.Table.Add(r);
-        await Save(ct);return r.GUID;
+        await Save(ct);await transaction.CommitAsync(ct);return r.GUID;
     }
     public Task<Guid> Handle(CreateNurseRequestCommand r,CancellationToken ct)=>Create(r.Input,"Nurse","/Nurse",ct);
     public Task<Guid> Handle(CreateDoctorRequestCommand r,CancellationToken ct)=>Create(r.Input,"Doctor","/Doctor",ct);

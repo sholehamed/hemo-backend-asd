@@ -125,3 +125,24 @@
 
 ### ST-03 | final acceptance review
 - Previous head c779e7c5: Release build and all 48 tests green (44 non-SQL, 4 SQL). Final review found a gap between reading admission rowversion and committing a request transition. New request transitions use a serializable SQL transaction and detail reads use a single statement for row/version/history consistency. No existing infrastructure changed. Revalidate with the full existing SQL lifecycle test suite. Later ST-04 must revalidate current admission/decision before any blood allocation or release.
+
+## ST-04 | مدل داده و طرح توسعه
+- چهار موجودیت BankBloodUnit, BankCompatibilityTest, BankUnitEvent, BankTemperatureLog با FK، index، rowversion، migration و تست قواعد وضعیت. مرجع هفت صفحه Raw. هیچ صدور/تحویل یا تصمیم بالینی خودکار. CI هنوز بررسی نشده.
+
+### ST04-02/03 | API و گردش واحد
+- CQRS دریافت تک‌واحد، بازرسی، نتیجه آزمایش مستند، رزرو دقیق فرآورده/تعداد، ذوب با ثبت انقضای مستند، آماده‌سازی، توقف، لغو رزرو، امحای ثبت‌شده، دما و برگشت درخواست؛ تراکنش Serializable، کنترل نسخه و مجوز صریح. نگرانی دمای ثبت‌شده باعث توقف محافظه‌کارانه واحدهای تجهیز می‌شود. بدون صدور فیزیکی یا تعیین خودکار سازگاری. CI pending.
+
+### ST04-04/05 | Seed و آزمون SQL
+- نقش موجود hemo.bloodbank با grants دقیق توسعه یافت؛ hemo.bank.supervisor جدا با بازرسی/امحا/برگشت. فلگ مستقل Development. تست چرخه واقعی SQL شامل نقش غیرمجاز، دریافت تکراری، آزمایش مردود، رزرو بیش از مقدار، rowversion، ذوب، کاهش انقضا، قرنطینه دمایی، لغو رزرو، برگشت درخواست و scope مرکز. مستند API/حساب‌ها ثبت شد. CI pending.
+
+### ST04 | تکمیل گزارش و کارتابل ذوب
+- CI قبلی 57 غیر SQL + 5 SQL سبز. برای نزدیک‌تر شدن به Raw، ماتریس موجودی گروه/فرآورده با aggregate SQL، گزارش آزمایش‌ها با فیلتر بازه و نتیجه و صف واقعی رزروهای نیازمند ذوب اضافه شد؛ تست SQL گسترش یافت. CI جدید pending.
+
+### ST04 | بازبینی نهایی همزمانی
+- CI add33073: 62/62 PASS. آزمون SQL به دو DbContext مستقل و رزرو همزمان دو واحد برای یک قلم یک‌واحدی گسترش یافت؛ دقیقاً یک رزرو باید ثبت شود. خطای deadlock/lock timeout در عملیات واحد با پیام بازیابی اطلاعات در ماژول جدید کنترل می‌شود. آزمون تغییر نسخه پذیرش پس از تأیید نیز اضافه شد. CI این کامیت pending.
+
+- Final build failed because Application has no direct SqlClient reference. Used provider-neutral DbException in new bank command only; no dependency/package changes. Re-run full suite.
+
+- Concurrent integration fixture uses independent IHttpContextAccessor instances to avoid shared AsyncLocal state between synthetic actors. No production change.
+
+- Concurrent SQL test exposed actual SQL Server deadlock, wrapped by EF in InvalidOperationException → DbUpdateException → provider exception. Handle the wrapped database failure only within bank unit operation; fail safely, rollback, return refresh/review error instead of blindly retrying. Keep concurrency test and re-run.

@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.FileProviders;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
@@ -71,7 +74,16 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
         const string issuer="hemo-isolated-http-test",audience="hemo-test";
         var builder=WebApplication.CreateBuilder(new WebApplicationOptions{EnvironmentName="Testing",Args=Array.Empty<string>()});
         builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(o=>o.Listen(IPAddress.Loopback,0));
+        var browserScript=Environment.GetEnvironmentVariable("HEMO_BROWSER_SCRIPT");
+        var browserRoot=Environment.GetEnvironmentVariable("HEMO_BROWSER_DIST");
+        var browserEnabled=!string.IsNullOrWhiteSpace(browserScript)||!string.IsNullOrWhiteSpace(browserRoot);
+        if(browserEnabled)
+        {
+            Assert.True(File.Exists(browserScript),"Browser runner is required.");
+            Assert.True(Directory.Exists(browserRoot)&&File.Exists(Path.Combine(browserRoot!,"index.html")),"Built Angular browser directory is required.");
+        }
+        // CI builds Angular with this loopback-only, non-privileged port. Normal HTTP tests keep a dynamic port.
+        builder.WebHost.ConfigureKestrel(o=>o.Listen(IPAddress.Loopback,browserEnabled?18002:0));
         builder.AddApplicationServices();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<Audit>();
@@ -97,6 +109,8 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             try { await next(context); }
             catch(Exception ex) { output.WriteLine(ex.ToString()); throw; }
         });
+        using var browserFiles=browserEnabled?new PhysicalFileProvider(browserRoot!):null;
+        if(browserEnabled)app.UseStaticFiles(new StaticFileOptions{FileProvider=browserFiles});
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
@@ -114,6 +128,19 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
         Assert.Equal(names.Length,names.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(137,names.Count(n=>n!.StartsWith("HEMO.",StringComparison.Ordinal)));
         Assert.Equal(endpoints.Length,endpoints.SelectMany(e=>e.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.Select(m=>m+" "+e.RoutePattern.RawText)).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        if(browserEnabled)
+        {
+            // Only two read endpoints needed by the existing company layout, not the whole admin API.
+            app.MapGet("/Identity/Menu/MenuBindUserMenu",new Web.Endpoints.Menu().MenuBindUserMenu).RequireAuthorization();
+            app.MapGet("/Identity/UserRole/GetCurrentUserRoles",new Web.Endpoints.UserRole().GetCurrentUserRoles).RequireAuthorization();
+            app.MapFallback(async context=>
+            {
+                if(context.Request.Path.StartsWithSegments("/Identity")||context.Request.Path.StartsWithSegments("/captchaendpoint"))
+                {context.Response.StatusCode=404;return;}
+                context.Response.ContentType="text/html; charset=utf-8";
+                await context.Response.SendFileAsync(Path.Combine(browserRoot!,"index.html"));
+            });
+        }
         var actors=new Dictionary<string,(Guid User,long Role,Guid TokenKey)>();
         var started=false;
         try
@@ -475,6 +502,32 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             Actor(manager);await Expect(await client.GetAsync(transferApi+"/Detail/"+transfer),HttpStatusCode.Forbidden);
             Actor(manager);await Expect(await client.GetAsync(admission+"/"+id),HttpStatusCode.Forbidden);
             await Expect(await client.GetAsync(requests+"/"+req),HttpStatusCode.Forbidden);
+            if(browserEnabled)
+            {
+                // Pass ephemeral credentials through stdin only. Never write them to disk, command line or logs.
+                var sessions=new[]{"hemo.dashboard.manager","hemo.admission","hemo.viewer"}.ToDictionary(
+                    name=>name,name=>new{token=Token(name),role=actors[name].Role});
+                using var browser=new Process{StartInfo=new ProcessStartInfo("node"){
+                    UseShellExecute=false,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true}};
+                browser.StartInfo.ArgumentList.Add(browserScript!);
+                Assert.True(browser.Start());
+                var stdout=browser.StandardOutput.ReadToEndAsync();
+                var stderr=browser.StandardError.ReadToEndAsync();
+                try
+                {
+                    await browser.StandardInput.WriteAsync(JsonSerializer.Serialize(sessions));
+                    browser.StandardInput.Close();
+                    using var timeout=new CancellationTokenSource(TimeSpan.FromMinutes(4));
+                    await browser.WaitForExitAsync(timeout.Token);
+                    var browserOutput=await stdout;var browserError=await stderr;
+                    // The runner reports only scenario labels and sanitized errors.
+                    output.WriteLine(browserOutput);
+                    Assert.True(browser.ExitCode==0,browserError);
+                    Assert.Contains("R03_BROWSER_PASS",browserOutput);
+                    Console.WriteLine(browserOutput);
+                }
+                finally{if(!browser.HasExited)browser.Kill(entireProcessTree:true);}
+            }
         }
         finally
         {

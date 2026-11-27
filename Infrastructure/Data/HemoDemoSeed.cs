@@ -356,6 +356,8 @@ public static class HemoDemoSeed
             await HemoHvReadRouteSeed.ApplyAsync(db,hvMenu!,apis,accounts,ct,includeHvOperationPages,includeHvReportPages);
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
+        if(includeQuality&&config.GetValue<bool>("HemoSeed:IncludeQualityReadPages"))
+            await HemoQualityReadRouteSeed.ApplyAsync(db,qualityMenu!,apis,accounts,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeDashboardSamples)await HemoDashboardSampleSeed.ApplyAsync(db,org.GUID,ct);
         await tx.CommitAsync(ct);

@@ -94,6 +94,8 @@ public class QualitySqlWorkflowTests
             var cd=await Equipment(centrifuge.Guid);var i=Assert.Single(cd.Incidents);
             await ec.Handle(new ResolveEquipmentIncidentCommand(new(i.Guid,i.Version,cd.Equipment.Version,"Synthetic repair","DEMO")),ct);
             Actor("hemo.equipment.reviewer");cd=await Equipment(centrifuge.Guid);await Assert.ThrowsAsync<ServiceExeption>(()=>ec.Handle(new EquipmentStateCommand(new(cd.Equipment.Guid,cd.Equipment.Version,"Fixture review","DEMO"),"Release"),ct));
+            Actor("hemo.equipment.tech");cd=await Equipment(centrifuge.Guid);await ec.Handle(new EquipmentServiceCommand(new(cd.Equipment.Guid,cd.Equipment.Version,"Calibration",DateTimeOffset.UtcNow.AddHours(-1),DateTimeOffset.UtcNow.AddDays(1),"DEMO","Synthetic provider","Accepted","Synthetic checks","Old performed date")),ct);
+            Actor("hemo.equipment.reviewer");cd=await Equipment(centrifuge.Guid);await Assert.ThrowsAsync<ServiceExeption>(()=>ec.Handle(new EquipmentStateCommand(new(cd.Equipment.Guid,cd.Equipment.Version,"Fixture review","DEMO"),"Release"),ct));
             Actor("hemo.equipment.tech");cd=await Equipment(centrifuge.Guid);await ec.Handle(new EquipmentServiceCommand(new(cd.Equipment.Guid,cd.Equipment.Version,"Calibration",DateTimeOffset.UtcNow,DateTimeOffset.UtcNow.AddDays(2),"DEMO","Synthetic provider","Accepted","Synthetic checks","Fixture service")),ct);
             Actor("hemo.equipment.reviewer");cd=await Equipment(centrifuge.Guid);await ec.Handle(new EquipmentStateCommand(new(cd.Equipment.Guid,cd.Equipment.Version,"Fixture independent review","DEMO"),"Release"),ct);
             Assert.Equal("Operational",(await Equipment(centrifuge.Guid)).Equipment.Status);

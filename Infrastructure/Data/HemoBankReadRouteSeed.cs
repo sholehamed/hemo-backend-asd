@@ -5,7 +5,7 @@ namespace Infrastructure.Data;
 
 public static class HemoBankReadRouteSeed
 {
-    public sealed record Route(string Path,string Label,string Icon,string Required,string[] Mapped,bool Visible=true,string[]? AdditionalRequired=null);
+    public sealed record Route(string Path,string Label,string Icon,string Required,string[] Mapped,bool Visible=true,string[]? AdditionalRequired=null,string? AlternativeRequired=null);
     public static readonly Route[] Routes=[
         new("/hemo/bank/inventory","موجودی بانک خون","pi pi-inbox","bank-inventory",["bank-inventory"]),
         new("/hemo/bank/reports","گزارش‌های بانک خون","pi pi-chart-bar","bank-stats",["bank-stats","bank-inventory","bank-temperature-history"])
@@ -14,13 +14,19 @@ public static class HemoBankReadRouteSeed
         new("/hemo/bank/receive","ثبت دریافت واحد","pi pi-plus","bank-receive",["bank-receive"],true,["bank-unit"]),
         new("/hemo/bank/unit/:guid","جزئیات و عملیات واحد","pi pi-file","bank-unit",["bank-unit","bank-inspect","bank-test","bank-reserve","bank-thaw","bank-ready","bank-hold","bank-unreserve","bank-discard","request-bank","request-bank-detail"],false)
     ];
+    public static readonly Route[] CompleteRoutes=[
+        new("/hemo/bank/crossmatch","کارتابل آزمایش و Crossmatch","pi pi-list","bank-inventory",["bank-inventory","request-bank","request-bank-detail","bank-return"],true,["bank-test","request-bank","request-bank-detail"]),
+        new("/hemo/bank/thaw","صف ذوب فرآورده‌ها","pi pi-clock","bank-inventory",["bank-inventory","request-bank-detail"],true,["bank-thaw"]),
+        new("/hemo/bank/temperature","پایش دما","pi pi-chart-line","bank-temperature-history",["bank-temperature-history","bank-temperature"],true,null,"bank-temperature"),
+        new("/hemo/bank/lab-history","تاریخچه آزمایش‌ها","pi pi-file","bank-lab-history",["bank-lab-history"])
+    ];
     public static bool CanOpen(Route route,IEnumerable<string> keys)
     {
         var allowed=keys.ToHashSet(StringComparer.Ordinal);
-        return allowed.Contains(route.Required)&&(route.AdditionalRequired?.All(allowed.Contains)??true);
+        return (allowed.Contains(route.Required)||(route.AlternativeRequired!=null&&allowed.Contains(route.AlternativeRequired)))&&(route.AdditionalRequired?.All(allowed.Contains)??true);
     }
     internal static async Task ApplyAsync(ApplicationDbContext db,Menu original,IReadOnlyDictionary<string,Guid> apis,
-        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeUnitPages=false)
+        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeUnitPages=false,bool includeCompletePages=false)
     {
         const string rootMarker="HEMO-R02-COMPANY-MENU";
         var root=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
@@ -51,7 +57,9 @@ public static class HemoBankReadRouteSeed
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(k=>apis.TryGetValue(k,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in includeUnitPages?Routes.Concat(UnitRoutes):Routes)
+        var active=includeUnitPages||includeCompletePages?Routes.Concat(UnitRoutes):Routes.AsEnumerable();
+        if(includeCompletePages)active=active.Concat(CompleteRoutes);
+        foreach(var route in active)
         {
             var marker="HEMO-R02-BANK:"+route.Path;
             var leaf=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);

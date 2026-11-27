@@ -1,4 +1,5 @@
 # ST-08 | راهنمای توسعه‌دهنده، استقرار و کنترل تحویل
+> سند تاریخی ST08؛ برای نسخه جاری Angular 19 و دستورهای معتبر، Seed ۱۵ حساب، CI مرورگر واقعی و استقرار آزمایشی به [R03_FINAL_HANDOVER_FA.md](R03_FINAL_HANDOVER_FA.md) مراجعه کنید. دستور npm run test:e2e تاریخی در package.json جاری موجود نیست. قبل از اجرای web، اتصال ایزوله باید توسط مسئول شرکت تأیید شود.
 ## معماری و محدوده
 Backend یکپارچه .NET 9 و یک ApplicationDbContext؛ Domain (Entity)، Application (CQRS/Services)، Infrastructure (EF/SQL/Seed)، web (EndpointGroup). Frontend Angular 22 standalone، Angular Material، RTL و HTTP service. ریپوهای قدیمی و hemo-raw فقط مرجع. هیچ تغییر عمومی Identity، CORS، Connection String، Middleware، Pipeline و Seed پایه مجاز نیست؛ تصمیم مالک در [Scope](../HEMO_ASD_SCOPE_OVERRIDE_FA.md).
 ## ساخت و تست

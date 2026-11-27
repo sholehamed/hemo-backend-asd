@@ -315,6 +315,38 @@ public class HemoDemoSeedTests
             var mappings=await db.MenuApi.CountAsync(ct);
             await HemoDemoSeed.ApplyAsync(db,cfg,ct);
             Assert.Equal(count,await db.RoleAccess.CountAsync(ct));Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));
+            var detailCfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeRequestDetailPages"]="true"
+            }).Build();
+            await HemoDemoSeed.ApplyAsync(db,detailCfg,ct);
+            db.ChangeTracker.Clear();
+            var detailPaths=HemoRequestReadRouteSeed.DetailRoutes.Select(r=>r.Path).ToArray();
+            var leaves=await db.Menu.Where(m=>detailPaths.Contains(m.routerLink)).ToListAsync(ct);
+            Assert.Equal(2,leaves.Count);
+            Assert.All(leaves,m=>{Assert.False(m.ShowInMenu);Assert.False(m.IsPublic);Assert.Equal(root.GUID,m.PMenuGUID);});
+            Assert.True(before.SetEquals(await db.RoleAccess.Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)));
+            foreach(var route in HemoRequestReadRouteSeed.DetailRoutes)
+            {
+                var leaf=Assert.Single(leaves.Where(m=>m.routerLink==route.Path));
+                var grants=await db.RoleAccess.Where(r=>r.MenuGUID==leaf.GUID).ToListAsync(ct);
+                var expected=new HashSet<(Guid,Guid?)>();
+                foreach(var account in accounts.Where(a=>HemoRequestReadRouteSeed.CanOpen(route,a.Permissions)))
+                {
+                    var roleId=roles.Single(r=>r.ConvertID=="HEMO-DEMO-ST02:"+account.Key).GUID;
+                    foreach(var key in route.Mapped.Where(k=>account.Permissions.Contains(k)))
+                    {
+                        var endpoint=HemoDemoSeed.BloodRequestEndpoints.Single(e=>e.Key==key);
+                        var api=await db.Api.SingleAsync(a=>a.APITypeName==endpoint.Method&&a.DownstreamPathTemplate==endpoint.Path,ct);
+                        expected.Add((roleId,api.GUID));
+                    }
+                }
+                Assert.True(expected.SetEquals(grants.Select(g=>(g.RoleGUID,g.ApiGUID))));
+            }
+            var detailCount=await db.RoleAccess.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,detailCfg,ct);
+            Assert.Equal(detailCount,await db.RoleAccess.CountAsync(ct));
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(detailCount,await db.RoleAccess.CountAsync(ct));
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
     }

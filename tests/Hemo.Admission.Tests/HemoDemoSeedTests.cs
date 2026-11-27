@@ -841,4 +841,73 @@ public class HemoDemoSeedTests
         Assert.DoesNotContain("hv-report-external",HemoDemoSeed.HvReviewer.Permissions);
         Assert.Contains("hv-archive",route.Mapped);
     }
+
+    [Fact]
+    [Trait("Category","SqlServer")]
+    public async Task QualityReadMenusPreserveExistingRoleApiPairs()
+    {
+        var connection=Environment.GetEnvironmentVariable("HEMO_TEST_SQL");
+        Assert.False(string.IsNullOrWhiteSpace(connection));
+        var cs=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection){InitialCatalog="Hemo_QualityRead_"+Guid.NewGuid().ToString("N")};
+        var auth=new AuthService(new HttpContextAccessor());
+        var options=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
+            .AddInterceptors(new Audit(),new DispatchDomainEventsInterceptor(null!)).Options;
+        await using var db=new ApplicationDbContext(options,auth);var ct=CancellationToken.None;
+        try
+        {
+            await db.Database.MigrateAsync(ct);
+            var accounts=HemoDemoSeed.DemoAccounts(true,true,true,true,true);
+            var settings=accounts.ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
+            settings["HemoSeed:IncludeQuality"]="true";
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(settings).Build(),ct);
+            var original=await db.Menu.SingleAsync(m=>m.routerLink=="/hemo/quality",ct);var originalId=original.GUID;
+            var paths=HemoQualityReadRouteSeed.Routes.Select(r=>r.Path).ToArray();
+            Assert.False(await db.Menu.AnyAsync(m=>paths.Contains(m.routerLink),ct));
+            var before=(await db.RoleAccess.Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)).ToHashSet();
+            var originalGrants=(await db.RoleAccess.Where(r=>r.MenuGUID==originalId).Select(r=>new{r.RoleGUID,r.ApiGUID}).ToListAsync(ct)).ToHashSet();
+            var users=await db.User.CountAsync(ct);
+            var cfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeQuality"]="true",["HemoSeed:IncludeQualityReadPages"]="true"
+            }).Build();
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);db.ChangeTracker.Clear();
+            var root=await db.Menu.SingleAsync(m=>m.routerLink=="/Hemo",ct);
+            var children=await db.Menu.Where(m=>m.PMenuGUID==root.GUID).ToListAsync(ct);
+            Assert.Equal(10,children.Count);
+            Assert.Equal(originalId,Assert.Single(children.Where(m=>m.routerLink=="/hemo/quality")).GUID);
+            Assert.All(children,m=>{Assert.False(m.IsPublic);Assert.True(m.ShowInMenu);Assert.Equal(root.Path+m.Gkey+"/",m.Path);});
+            Assert.False(await db.RoleAccess.AnyAsync(r=>r.MenuGUID==root.GUID,ct));
+            Assert.True(before.SetEquals(await db.RoleAccess.Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)));
+            Assert.True(originalGrants.SetEquals(await db.RoleAccess.Where(r=>r.MenuGUID==originalId).Select(r=>new{r.RoleGUID,r.ApiGUID}).ToListAsync(ct)));
+            var roles=await db.Role.Where(r=>r.ConvertID!=null).ToListAsync(ct);
+            foreach(var route in HemoQualityReadRouteSeed.Routes)
+            {
+                var leaf=Assert.Single(children.Where(m=>m.routerLink==route.Path));
+                var endpoint=HemoDemoSeed.QualityEndpoints.Single(e=>e.Key==Assert.Single(route.Mapped));
+                var api=await db.Api.SingleAsync(a=>a.APITypeName==endpoint.Method&&a.DownstreamPathTemplate==endpoint.Path,ct);
+                var expected=accounts.Where(a=>HemoQualityReadRouteSeed.CanOpen(route,a.Permissions))
+                    .Select(a=>(roles.Single(r=>r.ConvertID=="HEMO-DEMO-ST02:"+a.Key).GUID,(Guid?)api.GUID)).ToHashSet();
+                var actual=await db.RoleAccess.Where(r=>r.MenuGUID==leaf.GUID).ToListAsync(ct);
+                Assert.True(expected.SetEquals(actual.Select(g=>(g.RoleGUID,g.ApiGUID))));
+                Assert.Equal(api.GUID,Assert.Single(await db.MenuApi.Where(m=>m.MenuGUID==leaf.GUID).ToListAsync(ct)).ApiGUID);
+            }
+            var count=await db.RoleAccess.CountAsync(ct);var mappings=await db.MenuApi.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(count,await db.RoleAccess.CountAsync(ct));Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));Assert.Equal(users,await db.User.CountAsync(ct));
+        }
+        finally{await db.Database.EnsureDeletedAsync(ct);}
+    }
+    [Fact]
+    public void QualityReadRoutesPreserveRoleSeparation()
+    {
+        var routes=HemoQualityReadRouteSeed.Routes;
+        Assert.Equal(9,routes.Length);
+        var tech=HemoDemoSeed.QualityAccounts.Single(a=>a.Key=="EquipmentTech").Permissions;
+        var reviewer=HemoDemoSeed.QualityAccounts.Single(a=>a.Key=="EquipmentReviewer").Permissions;
+        var officer=HemoDemoSeed.QualityAccounts.Single(a=>a.Key=="QualityOfficer").Permissions;
+        Assert.Equal(5,routes.Count(r=>HemoQualityReadRouteSeed.CanOpen(r,tech)));
+        Assert.Equal(3,routes.Count(r=>HemoQualityReadRouteSeed.CanOpen(r,reviewer)));
+        Assert.Equal(4,routes.Count(r=>HemoQualityReadRouteSeed.CanOpen(r,officer)));
+        Assert.Single(routes.Where(r=>HemoQualityReadRouteSeed.CanOpen(r,HemoDemoSeed.DashboardManager.Permissions)));
+        Assert.All(routes,r=>Assert.Single(r.Mapped));
+    }
 }

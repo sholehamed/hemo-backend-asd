@@ -197,3 +197,10 @@
 - تکمیل ثبت مستقل تاریخچه مشخصات مرکز (قبل/بعد و دلیل تغییر)، Migration و assertion SQL.
 
 - بازبینی نهایی: زمان واقعی انجام سرویس باید پس از آخرین توقف/رفع نقص باشد، نه فقط زمان ثبت آن؛ آزمون SQL سرویس قدیمی ثبت‌شده بعد از رفع نقص. هشدار EquipmentBlocked فقط روی وضعیت‌های نگهداری بانک اعمال می‌شود، نه تاریخچه صدور/تزریق.
+
+## ST-08 | Delivery / hardening (in progress)
+- Baseline ST07 merged in both repos. Branch feature/st-08-delivery. Owner scope preserved.
+- ST08-01/02: audited admission vs request/bank/transfer. Added administrative clearance guard and serialized admission review and request creation. Existing AwaitingBank status persists after completed transfusion: quantity comparison, not status alone. No schema changes; no clinical discharge or override. Partial order disposition remains open; clinical policy and reaction/CAPA follow-up requirements must be confirmed.
+- ST08-04: opt-in HemoSeed:IncludeDeliverySamples, 14 existing roles, independent sample sets ST05/06/07 together. No additional password defaults or account grants; no expiry refresh. Account/setup document docs/delivery/DEMO_ACCOUNTS_FA.md.
+- ST08-05/06: SQL tests for aggregate seed repeatability and negative clearance; positive clearance after actual transfer lifecycle. Existing SQL regression suite retained. CI updated. NOT RUN in current execution; await actual CI results before merge.
+- ST08-07/08: user guide in frontend docs/delivery, backend developer/deployment guide, API supplement. ST08-03/05/09: live role/HTTP/SQL/browser end-to-end and final acceptance remain open. No production deployment.

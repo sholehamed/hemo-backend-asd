@@ -1013,4 +1013,67 @@ public class HemoDemoSeedTests
         Assert.DoesNotContain("quality-facility-save",reviewer);
         Assert.Contains("quality-facility-save",officer);
     }
+
+    [Fact]
+    public void DashboardRouteRequiresAtLeastOneAggregatePermission()
+    {
+        Assert.True(HemoDashboardRouteSeed.CanOpen(HemoDemoSeed.DashboardManager.Permissions));
+        Assert.True(HemoDashboardRouteSeed.CanOpen(new[]{"bank-stats"}));
+        Assert.False(HemoDashboardRouteSeed.CanOpen(new[]{"list","detail","quality-equipment-create"}));
+        Assert.Equal(HemoDemoSeed.DashboardManager.Permissions.OrderBy(x=>x),HemoDashboardRouteSeed.StatsKeys.OrderBy(x=>x));
+    }
+
+    [Fact]
+    [Trait("Category","SqlServer")]
+    public async Task DashboardMenuPreservesExistingGrantsAndManagerIsAggregateOnly()
+    {
+        var connection=Environment.GetEnvironmentVariable("HEMO_TEST_SQL");
+        Assert.False(string.IsNullOrWhiteSpace(connection));
+        var cs=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection){InitialCatalog="Hemo_Dashboard_"+Guid.NewGuid().ToString("N")};
+        var auth=new AuthService(new HttpContextAccessor());
+        var options=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
+            .AddInterceptors(new Audit(),new DispatchDomainEventsInterceptor(null!)).Options;
+        await using var db=new ApplicationDbContext(options,auth);var ct=CancellationToken.None;
+        try
+        {
+            await db.Database.MigrateAsync(ct);
+            var accounts=HemoDemoSeed.DemoAccounts(true,true,true,true,true);
+            var settings=accounts.Append(HemoDemoSeed.DashboardManager).ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
+            settings["HemoSeed:IncludeQuality"]="true";
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(settings).Build(),ct);
+            Assert.False(await db.Menu.AnyAsync(m=>m.routerLink==HemoDashboardRouteSeed.Path,ct));
+            var before=(await db.RoleAccess.Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)).ToHashSet();
+            var users=await db.User.CountAsync(ct);
+            settings["HemoSeed:IncludeDashboardPages"]="true";
+            var cfg=new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);db.ChangeTracker.Clear();
+            var role=await db.Role.SingleAsync(r=>r.ConvertID=="HEMO-DEMO-ST02:DashboardManager",ct);
+            var menu=await db.Menu.SingleAsync(m=>m.routerLink==HemoDashboardRouteSeed.Path,ct);
+            var root=await db.Menu.SingleAsync(m=>m.routerLink=="/Hemo",ct);
+            Assert.False(menu.IsPublic);Assert.True(menu.ShowInMenu);Assert.Equal(root.GUID,menu.PMenuGUID);
+            Assert.True(before.SetEquals(await db.RoleAccess.Where(r=>r.RoleGUID!=role.GUID).Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)));
+            var endpoints=HemoDemoSeed.Endpoints.Concat(HemoDemoSeed.BloodRequestEndpoints).Concat(HemoDemoSeed.BankEndpoints).Concat(HemoDemoSeed.TransferEndpoints).Concat(HemoDemoSeed.HvEndpoints).Concat(HemoDemoSeed.QualityEndpoints);
+            var expected=new HashSet<Guid>();
+            foreach(var key in HemoDashboardRouteSeed.StatsKeys)
+            {
+                var endpoint=endpoints.Single(x=>x.Key==key);
+                var api=await db.Api.SingleAsync(x=>x.APITypeName==endpoint.Method&&x.DownstreamPathTemplate==endpoint.Path,ct);
+                expected.Add(api.GUID);
+            }
+            Assert.Equal(7,expected.Count);
+            Assert.True(expected.SetEquals(await db.MenuApi.Where(x=>x.MenuGUID==menu.GUID).Select(x=>x.ApiGUID).ToListAsync(ct)));
+            var managerGrants=await db.RoleAccess.Where(x=>x.RoleGUID==role.GUID).ToListAsync(ct);
+            Assert.All(managerGrants,x=>Assert.True(x.ApiGUID.HasValue&&expected.Contains(x.ApiGUID.Value)));
+            Assert.True(expected.SetEquals(managerGrants.Where(x=>x.MenuGUID==menu.GUID).Select(x=>x.ApiGUID!.Value)));
+            Assert.True(expected.SetEquals(managerGrants.Select(x=>x.ApiGUID!.Value)));
+            var all=await db.RoleAccess.Where(x=>x.MenuGUID==menu.GUID).ToListAsync(ct);
+            Assert.All(all,x=>Assert.True(x.ApiGUID.HasValue&&expected.Contains(x.ApiGUID.Value)));
+            Assert.Equal(users+1,await db.User.CountAsync(ct));
+            var count=await db.RoleAccess.CountAsync(ct);var mappings=await db.MenuApi.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(count,await db.RoleAccess.CountAsync(ct));Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));
+            Assert.Equal(users+1,await db.User.CountAsync(ct));
+        }
+        finally{await db.Database.EnsureDeletedAsync(ct);}
+    }
 }

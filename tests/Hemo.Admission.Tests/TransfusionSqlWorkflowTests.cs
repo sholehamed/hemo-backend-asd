@@ -154,6 +154,15 @@ public class TransfusionSqlWorkflowTests
             await review.Handle(new ReviewAdmissionCommand(admissionGuid,"Identity","Verified",31,null,a.Version),ct);
             Actor("hemo.bank.supervisor");await Assert.ThrowsAsync<ServiceExeption>(()=>tx.Handle(new DispatchTransferCommand(Input(four)),ct));
             var stats=await tq.Handle(new TransferStatsQuery(),ct);Assert.Equal(3,stats.Total);Assert.Equal(1,stats.Completed);Assert.Equal(1,stats.Returned);Assert.Equal(1,stats.Disposed);Assert.Equal(1,stats.SuspectedReactions);
+            // The completed physical flow can be reviewed without treating AwaitingBank as inherently open.
+            Actor("hemo.admission");
+            var completedAdmission=await db.BloodRequest.Where(x=>x.GUID==one.RequestGuid).Select(x=>x.PatientAdmissionGUID).SingleAsync(ct);
+            var doneAdmission=await admissionQuery.Handle(new PatientAdmissionFindByIdQuery(completedAdmission),ct);
+            await review.Handle(new ReviewAdmissionCommand(completedAdmission,"History","Reviewed",0,"Synthetic documented history",doneAdmission.Version),ct);
+            db.ChangeTracker.Clear();doneAdmission=await admissionQuery.Handle(new PatientAdmissionFindByIdQuery(completedAdmission),ct);
+            await review.Handle(new ReviewAdmissionCommand(completedAdmission,"Clearance","Ready",31,"Synthetic documented review",doneAdmission.Version),ct);
+            db.ChangeTracker.Clear();Assert.Equal("ReadyForDischarge",(await admissionQuery.Handle(new PatientAdmissionFindByIdQuery(completedAdmission),ct)).Status);
+            Actor("hemo.bank.supervisor");
             var actor=users.Single(x=>x.User.Username=="hemo.bank.supervisor");var other=new OrgLocation{Name="Other fixture center"};db.OrgLocation.Add(other);await db.SaveChangesAsync(ct);
             var assignment=new UserRole{UserGUID=actor.UserGUID,RoleGUID=actor.RoleGUID,OrgLocationGUID=other.GUID,ExpireDate=DateTime.Now.AddDays(1)};db.UserRole.Add(assignment);await db.SaveChangesAsync(ct);db.ChangeTracker.Clear();
             http.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",actor.UserGUID.ToString()),new Claim("UserRoles",assignment.Gkey.ToString())},"Fixture"));http.Request.Headers["UserRole"]=assignment.Gkey.ToString();

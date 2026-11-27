@@ -3523,6 +3523,31 @@ namespace Infrastructure.SQLServer
                 b.HasIndex("HemoQualityRecordGUID", "OccurredAt");
                 b.ToTable("HemoQualityEvent");
             });
+            modelBuilder.Entity("Domain.Entities.HemoFacilityProfileEvent", b =>
+            {
+                b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("Created").HasColumnType("datetime2");
+                b.Property<string>("ConvertID").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("CreatedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime>("LastModified").HasColumnType("datetime2");
+                b.Property<Guid>("LastModifiedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("LastModifiedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime?>("Deleted").HasColumnType("datetime2");
+                b.Property<Guid?>("DeletedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("DeletedByIP").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<bool>("IsDelete").HasColumnType("bit");
+                b.Property<Guid>("HemoFacilityProfileGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("ActorUserGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("ActorRoleGUID").HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("OccurredAt").HasColumnType("datetime2");
+                b.Property<string>("Notes").IsRequired().HasMaxLength(4000).IsUnicode(true).HasColumnType("nvarchar(4000)");
+                b.Property<string>("PreviousJson").IsUnicode(true).HasColumnType("nvarchar(max)");
+                b.Property<string>("CurrentJson").IsRequired().IsUnicode(true).HasColumnType("nvarchar(max)");
+                b.HasKey("GUID");
+                b.HasIndex("HemoFacilityProfileGUID", "OccurredAt");
+                b.ToTable("HemoFacilityProfileEvent");
+            });
             modelBuilder.Entity("Domain.Entities.HemoFacilityProfile", b =>
             {
                 b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
@@ -3580,6 +3605,11 @@ namespace Infrastructure.SQLServer
             {
                 b.HasOne("Domain.Entities.HemoQualityRecord", "Record").WithMany().HasForeignKey("HemoQualityRecordGUID").OnDelete(DeleteBehavior.Restrict).IsRequired();
                 b.Navigation("Record");
+            });
+            modelBuilder.Entity("Domain.Entities.HemoFacilityProfileEvent", b =>
+            {
+                b.HasOne("Domain.Entities.HemoFacilityProfile", "Profile").WithMany().HasForeignKey("HemoFacilityProfileGUID").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.Navigation("Profile");
             });
             modelBuilder.Entity("Domain.Entities.HemoFacilityProfile", b =>
             {

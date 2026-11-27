@@ -231,9 +231,37 @@ public partial class AddHemoQualityManagement : Migration
             table.ForeignKey("FK_HemoFacilityProfile_OrgLocation_OrgLocationGUID", x=>x.OrgLocationGUID, "OrgLocation", "GUID", onDelete: ReferentialAction.Restrict);
         });
         migrationBuilder.CreateIndex(name: "IX_HemoFacilityProfile_OrgLocationGUID", table: "HemoFacilityProfile", column: "OrgLocationGUID", unique: true);
+        migrationBuilder.CreateTable(name: "HemoFacilityProfileEvent", columns: table => new
+        {
+            GUID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+            Created = table.Column<DateTime>(type: "datetime2", nullable: false),
+            ConvertID = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+            CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+            CreatedByIP = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+            LastModified = table.Column<DateTime>(type: "datetime2", nullable: false),
+            LastModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+            LastModifiedByIP = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+            Deleted = table.Column<DateTime>(type: "datetime2", nullable: true),
+            DeletedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+            DeletedByIP = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+            IsDelete = table.Column<bool>(type: "bit", nullable: false),
+            HemoFacilityProfileGUID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+            ActorUserGUID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+            ActorRoleGUID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+            OccurredAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+            Notes = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: false),
+            PreviousJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+            CurrentJson = table.Column<string>(type: "nvarchar(max)", nullable: false)
+        }, constraints: table =>
+        {
+            table.PrimaryKey("PK_HemoFacilityProfileEvent", x=>x.GUID);
+            table.ForeignKey("FK_HemoFacilityProfileEvent_HemoFacilityProfile_HemoFacilityProfileGUID", x=>x.HemoFacilityProfileGUID, "HemoFacilityProfile", "GUID", onDelete: ReferentialAction.Restrict);
+        });
+        migrationBuilder.CreateIndex(name: "IX_HemoFacilityProfileEvent_HemoFacilityProfileGUID_OccurredAt", table: "HemoFacilityProfileEvent", columns: new[] { "HemoFacilityProfileGUID", "OccurredAt" });
     }
     protected override void Down(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropTable("HemoFacilityProfileEvent");
         migrationBuilder.DropTable("HemoFacilityProfile");
         migrationBuilder.DropTable("HemoQualityEvent");
         migrationBuilder.DropTable("HemoQualityLine");

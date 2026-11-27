@@ -14,7 +14,8 @@ public record QualityEventView(string Action,string PreviousStatus,string NewSta
 public record QualityDetail(QualityRow Record,QualityHeader Header,List<QualityLineView> Lines,List<QualityEventView> Events,string? ReviewNotes,Guid? ReviewedBy,int? AuditScore,int? AuditMaximum);
 public record QualityOwner(Guid UserGuid,string Name);
 public record FacilityInput(byte[]? Version,string FacilityName,string? AccreditationCode,string? Chair,string? Secretary,string? Officer,string? BloodCenter,string? BloodCenterCode,string? ReportFooter,string Notes);
-public record FacilityView(string FacilityName,string? AccreditationCode,string? Chair,string? Secretary,string? Officer,string? BloodCenter,string? BloodCenterCode,string? ReportFooter,byte[]? Version);
+public record FacilityEventView(DateTime OccurredAt,Guid ActorUserGuid,string Notes,string? PreviousJson,string CurrentJson);
+public record FacilityView(string FacilityName,string? AccreditationCode,string? Chair,string? Secretary,string? Officer,string? BloodCenter,string? BloodCenterCode,string? ReportFooter,byte[]? Version,List<FacilityEventView>? History=null);
 public record QualityStatsFilter(DateTimeOffset? From=null,DateTimeOffset? To=null,string? Ward=null);
 public record QualityCount(string Key,int Count);
 public record QualityUsage(string ProductCode,int Received,int Started,int Completed,int Discarded);

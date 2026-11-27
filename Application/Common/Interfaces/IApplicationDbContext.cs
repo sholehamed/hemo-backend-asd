@@ -65,6 +65,7 @@ public interface  IApplicationDbContext
     public DbSet<HemoQualityLine> HemoQualityLine { get; set; }
     public DbSet<HemoQualityEvent> HemoQualityEvent { get; set; }
     public DbSet<HemoFacilityProfile> HemoFacilityProfile { get; set; }
+    public DbSet<HemoFacilityProfileEvent> HemoFacilityProfileEvent { get; set; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

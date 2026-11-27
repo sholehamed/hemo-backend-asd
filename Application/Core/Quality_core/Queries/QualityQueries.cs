@@ -53,7 +53,8 @@ public class QualityQueryHandler(HemoQualityRecordService records,UserRoleServic
     {
         var a=await QualityAccess.Require(roles,auth,"get","/Facility",ct);var p=await Db.HemoFacilityProfile.AsNoTracking().SingleOrDefaultAsync(x=>x.OrgLocationGUID==a.OrgLocationGUID,ct);
         if(p==null)return new(await Db.OrgLocation.Where(x=>x.GUID==a.OrgLocationGUID).Select(x=>x.Name).SingleAsync(ct),null,null,null,null,null,null,null,null);
-        return new(p.FacilityName,p.AccreditationCode,p.Chair,p.Secretary,p.Officer,p.BloodCenter,p.BloodCenterCode,p.ReportFooter,p.Version);
+        var history=await Db.HemoFacilityProfileEvent.AsNoTracking().Where(x=>x.HemoFacilityProfileGUID==p.GUID).OrderByDescending(x=>x.OccurredAt).Take(100).Select(x=>new FacilityEventView(x.OccurredAt,x.ActorUserGUID,x.Notes,x.PreviousJson,x.CurrentJson)).ToListAsync(ct);
+        return new(p.FacilityName,p.AccreditationCode,p.Chair,p.Secretary,p.Officer,p.BloodCenter,p.BloodCenterCode,p.ReportFooter,p.Version,history);
     }
     public async Task<QualityStats> Handle(QualityStatsQuery cmd,CancellationToken ct)
     {

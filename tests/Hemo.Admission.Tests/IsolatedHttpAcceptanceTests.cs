@@ -9,6 +9,10 @@ using System.Text.Json;
 using Application.Common.Interfaces;
 using Application.Common.Utility.Security;
 using Application.Core.BloodRequest_core;
+using Application.Core.BloodBank_core;
+using Application.Core.Quality_core;
+using Application.Core.Transfusion_core;
+using Application.Core.Transfusion_core.Queries;
 using Application.Core.PatientAdmission_core.Commands.CreatePatientAdmission;
 using Application.Core.PatientAdmission_core.Commands.ReviewAdmission;
 using Application.Repository.Services;
@@ -211,6 +215,120 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             Actor("hemo.bloodbank");
             var bankRequest=await Json(await client.GetAsync(requests+"/Bank/"+req));
             Assert.Equal("AwaitingBank",bankRequest.GetProperty("request").GetProperty("status").GetString());
+
+            // R03-02: continue the SAME request through the real equipment, bank and transfusion endpoints.
+            // All measurements and labels below are synthetic fixtures, not clinical recommendations.
+            const string equipmentApi="/Identity/HemoQuality",bankApi="/Identity/BloodBank",transferApi="/Identity/Transfusion";
+            var jsonOptions=new JsonSerializerOptions(JsonSerializerDefaults.Web);
+            T Read<T>(JsonElement value)=>value.Deserialize<T>(jsonOptions)!;
+            Actor("hemo.admission");
+            var active=await Json(await client.GetAsync(admission+"/"+id));
+            var prematureClearance=new ReviewAdmissionCommand(id,"Clearance","Ready",31,"Synthetic fixture",active.GetProperty("version").GetBytesFromBase64());
+            await Expect(await client.PostAsJsonAsync(admission+"/Review",prematureClearance),HttpStatusCode.BadRequest);
+            Assert.Equal("Active",(await Json(await client.GetAsync(admission+"/"+id))).GetProperty("status").GetString());
+
+            const string equipmentCode="FIX-HTTP-FRIDGE",unitCode="FIX-HTTP-U1";
+            Actor("hemo.equipment.tech");
+            var equipment=(await Json(await client.PostAsJsonAsync(equipmentApi+"/EquipmentCreate",
+                new EquipmentInput(equipmentCode,"Synthetic fridge","Refrigerator","Fixture model","Fixture ward")))).GetGuid();
+            async Task<EquipmentDetail> Equipment()=>Read<EquipmentDetail>(await Json(await client.GetAsync(equipmentApi+"/EquipmentDetail/"+equipment)));
+            var e=await Equipment();
+            Assert.Equal("Hold",e.Equipment.Status);
+            var now=DateTimeOffset.UtcNow;
+            var receive=new ReceiveUnit(unitCode,"RBC","O+",null,"Synthetic supplier",equipmentCode,now.AddMinutes(-1),now.AddDays(1));
+            Actor("hemo.bloodbank");
+            await Expect(await client.PostAsJsonAsync(bankApi+"/Receive",receive),HttpStatusCode.BadRequest);
+            Actor("hemo.equipment.reviewer");
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentRelease",new EquipmentActionInput(equipment,e.Equipment.Version,"Synthetic premature release","FIX")),HttpStatusCode.BadRequest);
+            Actor("hemo.equipment.tech");
+            e=await Equipment();
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentService",new ServiceInput(equipment,e.Equipment.Version,"Calibration",DateTimeOffset.UtcNow,DateTimeOffset.UtcNow.AddDays(1),"FIX","Synthetic provider","Accepted","Synthetic checks","Synthetic only")),HttpStatusCode.NoContent);
+            Actor("hemo.equipment.reviewer");e=await Equipment();
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentRelease",new EquipmentActionInput(equipment,e.Equipment.Version,"Synthetic independent review","FIX")),HttpStatusCode.NoContent);
+            Assert.Equal("Operational",(await Equipment()).Equipment.Status);
+            Actor("hemo.equipment.tech");e=await Equipment();
+            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentTemperature",new EquipmentTemperatureInput(equipment,e.Equipment.Version,DateTimeOffset.UtcNow,"Morning",0m,-1m,1m,true,true,true,"Acceptable","Synthetic observation")),HttpStatusCode.NoContent);
+
+            Actor("hemo.bloodbank");
+            var unit=(await Json(await client.PostAsJsonAsync(bankApi+"/Receive",receive),HttpStatusCode.Created)).GetGuid();
+            await Expect(await client.PostAsJsonAsync(bankApi+"/Receive",receive),HttpStatusCode.BadRequest);
+            async Task<UnitDetail> Unit()=>Read<UnitDetail>(await Json(await client.GetAsync(bankApi+"/Unit/"+unit)));
+            async Task BankAction(string action,Guid? request=null,byte[]? requestVersion=null,HttpStatusCode expected=HttpStatusCode.NoContent)
+            {
+                var snapshot=await Unit();
+                await Expect(await client.PostAsJsonAsync(bankApi+"/"+action,new UnitAction(unit,snapshot.Unit.Version,action,request,requestVersion,"Synthetic action")),expected);
+            }
+            Assert.Equal("ReceivedHold",(await Unit()).Unit.Status);
+            var requestVersion=bankRequest.GetProperty("version").GetBytesFromBase64();
+            await BankAction("Reserve",req,requestVersion,HttpStatusCode.BadRequest);
+            Actor("hemo.bank.supervisor");await BankAction("Inspect");
+            Assert.Equal("Available",(await Unit()).Unit.Status);
+            Actor("hemo.bloodbank");
+            bankRequest=await Json(await client.GetAsync(requests+"/Bank/"+req));
+            requestVersion=bankRequest.GetProperty("version").GetBytesFromBase64();
+            await BankAction("Reserve",req,requestVersion,HttpStatusCode.BadRequest);
+            var u=await Unit();
+            var lab=new LabInput(unit,u.Unit.Version,req,requestVersion,"FIX","Confirmed","O+","Synthetic method","NonReactive","NonReactive","NonReactive","NonReactive","NonReactive","FIX-REPORT","Accepted","Synthetic fixture");
+            Assert.NotEqual(Guid.Empty,(await Json(await client.PostAsJsonAsync(bankApi+"/Test",lab))).GetGuid());
+            await Expect(await client.PostAsJsonAsync(bankApi+"/Test",lab),HttpStatusCode.BadRequest);
+            await BankAction("Reserve",req,requestVersion);Assert.Equal("Reserved",(await Unit()).Unit.Status);
+            Actor("hemo.bank.supervisor");
+            var candidates=await Json(await client.PostAsJsonAsync(transferApi+"/Candidates",new DispatchCandidatesQuery(RequestGuid:req)));
+            Assert.Empty(candidates.GetProperty("data").EnumerateArray());
+            Actor("hemo.bloodbank");await BankAction("Ready");Assert.Equal("Ready",(await Unit()).Unit.Status);
+            Actor("hemo.bank.supervisor");
+            candidates=await Json(await client.PostAsJsonAsync(transferApi+"/Candidates",new DispatchCandidatesQuery(RequestGuid:req)));
+            var candidate=Read<DispatchCandidate>(Assert.Single(candidates.GetProperty("data").EnumerateArray()));
+            Assert.Equal(unit,candidate.UnitGuid);Assert.Equal(req,candidate.RequestGuid);
+            var dispatch=new DispatchInput(candidate.UnitGuid,candidate.UnitVersion,candidate.UnitCode,candidate.WristbandCode,"Synthetic courier","FIX","FIX-BOX",0m,"Synthetic indicator",null,31,"Synthetic fixture");
+            await Expect(await client.PostAsJsonAsync(transferApi+"/Dispatch",dispatch with{WristbandCode="FIX-WRONG"}),HttpStatusCode.BadRequest);
+            var transfer=(await Json(await client.PostAsJsonAsync(transferApi+"/Dispatch",dispatch),HttpStatusCode.Created)).GetGuid();
+            await Expect(await client.PostAsJsonAsync(transferApi+"/Dispatch",dispatch),HttpStatusCode.BadRequest);
+            Assert.Equal("Issued",(await Unit()).Unit.Status);
+            candidates=await Json(await client.PostAsJsonAsync(transferApi+"/Candidates",new DispatchCandidatesQuery(RequestGuid:req)));
+            Assert.Empty(candidates.GetProperty("data").EnumerateArray());
+            async Task<TransferDetail> Transfer()=>Read<TransferDetail>(await Json(await client.GetAsync(transferApi+"/Detail/"+transfer)));
+            async Task TransferAction(string action,HttpStatusCode expected=HttpStatusCode.NoContent,Func<TransferActionInput,TransferActionInput>? edit=null)
+            {
+                var t=await Transfer();
+                var payload=new TransferActionInput(transfer,t.Transfer.Version,t.Transfer.UnitCode,t.WristbandCode,31,"Synthetic fixture",0m,"Acceptable","Synthetic receiver","Synthetic equipment");
+                await Expect(await client.PostAsJsonAsync(transferApi+"/"+action,edit==null?payload:edit(payload)),expected);
+            }
+            async Task Vital(string phase)
+            {
+                var t=await Transfer();
+                var payload=new VitalInput(transfer,t.Transfer.Version,phase,DateTimeOffset.UtcNow,120,80,75,37m,98,16,null,"Synthetic observation",10m);
+                Assert.NotEqual(Guid.Empty,(await Json(await client.PostAsJsonAsync(transferApi+"/Vital",payload))).GetGuid());
+            }
+            Actor("hemo.nurse");
+            Assert.Equal("Dispatched",(await Transfer()).Transfer.Status);
+            await TransferAction("Receive");
+            await TransferAction("Verify",HttpStatusCode.BadRequest,x=>x with{WristbandCode="FIX-WRONG"});
+            Assert.Equal("Received",(await Transfer()).Transfer.Status);
+            await TransferAction("Verify");
+            await TransferAction("Witness",HttpStatusCode.BadRequest);
+            Assert.Equal("Verified",(await Transfer()).Transfer.Status);
+            Actor("hemo.nurse.witness");await TransferAction("Witness");
+            Actor("hemo.nurse");
+            var witnessed=await Transfer();Assert.Equal("Witnessed",witnessed.Transfer.Status);
+            Assert.Equal(actors["hemo.nurse"].User,witnessed.VerifiedBy);
+            Assert.Equal(actors["hemo.nurse.witness"].User,witnessed.WitnessedBy);
+            await TransferAction("Start",HttpStatusCode.BadRequest);
+            await Vital("T0");await TransferAction("Start");
+            await TransferAction("Complete",HttpStatusCode.BadRequest,x=>x with{VolumeMl=100m});
+            Assert.Equal("InProgress",(await Transfer()).Transfer.Status);
+            await Vital("T15");await Vital("End");await TransferAction("Complete",edit:x=>x with{VolumeMl=100m});
+            var completed=await Transfer();
+            Assert.Equal("Completed",completed.Transfer.Status);
+            Assert.Equal(id,completed.Transfer.AdmissionGuid);
+            Assert.Equal(req,completed.Transfer.RequestGuid);
+            Assert.Equal(unit,completed.Transfer.UnitGuid);
+            Assert.Equal(100m,completed.Transfer.VolumeMl);
+            Assert.Equal(new[]{"T0","T15","End"},completed.Vitals.Select(x=>x.Phase));
+            Assert.Equal(new[]{"Dispatch","Receive","Verify","Witness","Start","Complete"},completed.Events.Select(x=>x.Action).Where(x=>x!="Vital"));
+            Actor("hemo.bank.supervisor");
+            Assert.Equal("Transfused",(await Unit()).Unit.Status);
+            Actor(manager);await Expect(await client.GetAsync(transferApi+"/Detail/"+transfer),HttpStatusCode.Forbidden);
             Actor(manager);await Expect(await client.GetAsync(admission+"/"+id),HttpStatusCode.Forbidden);
             await Expect(await client.GetAsync(requests+"/"+req),HttpStatusCode.Forbidden);
         }

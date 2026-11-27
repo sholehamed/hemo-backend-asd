@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data;
 
-// Opt-in route aliases for the R02 read-only request pages. Reuse the
-// existing endpoint and role grants; never grant a mutation on a queue.
+// Opt-in R02 request page grants. Reuse existing role/API pairs;
+// never grant a mutation on a read-only queue.
 public static class HemoRequestReadRouteSeed
 {
     public sealed record Route(string Path,string Label,string Icon,bool Visible,string[] Required,string[] Mapped);
@@ -17,6 +17,11 @@ public static class HemoRequestReadRouteSeed
         new("/hemo/requests/detail/:guid","جزئیات درخواست خون","pi pi-file",false,["request-detail"],["request-detail","request-submit","request-cancel","request-decide"]),
         new("/hemo/requests/bank/:guid","جزئیات صف بانک خون","pi pi-inbox",false,["request-bank-detail"],["request-bank-detail"])
     ];
+    public static readonly Route[] FormRoutes=[
+        new("/hemo/requests/new","ثبت درخواست پرستاری","pi pi-plus",true,["request-nurse","request-detail","list","detail"],["request-nurse","list","detail","request-detail","request-submit"]),
+        new("/hemo/requests/orders","ثبت دستور پزشک","pi pi-file-edit",true,["request-doctor","request-detail","list","detail"],["request-doctor","list","detail","request-detail","request-submit"]),
+        new("/hemo/requests/edit/:guid","ویرایش درخواست خون","pi pi-pencil",false,["request-edit","request-detail","detail"],["request-edit","request-detail","detail","request-submit"])
+    ];
     public static bool CanOpen(Route route,IEnumerable<string> keys)
     {
         var allowed=keys.ToHashSet(StringComparer.Ordinal);
@@ -24,7 +29,7 @@ public static class HemoRequestReadRouteSeed
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Menu original,
-        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeDetailPages=false)
+        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeDetailPages=false,bool includeFormPages=false)
     {
         const string rootMarker="HEMO-R02-COMPANY-MENU";
         const string prefix="HEMO-R02-REQUEST:";
@@ -53,15 +58,18 @@ public static class HemoRequestReadRouteSeed
             if(original.Path!=root.Path+original.Gkey+"/")
                 throw new InvalidOperationException("Request menu path was not recalculated.");
         }
+        var admission=await db.Menu.SingleAsync(m=>m.routerLink=="/admission",ct);
         var roles=new List<(Guid Id,HashSet<string> Keys)>();
         foreach(var account in accounts)
         {
             var role=await db.Role.SingleAsync(r=>r.ConvertID=="HEMO-DEMO-ST02:"+account.Key,ct);
-            var grants=(await db.RoleAccess.Where(r=>r.RoleGUID==role.GUID&&r.MenuGUID==original.GUID&&r.ApiGUID.HasValue)
+            var grants=(await db.RoleAccess.Where(r=>r.RoleGUID==role.GUID&&(r.MenuGUID==original.GUID||r.MenuGUID==admission.GUID)&&r.ApiGUID.HasValue)
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(key=>apis.TryGetValue(key,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in includeDetailPages?Routes.Concat(DetailRoutes):Routes)
+        var active=includeDetailPages||includeFormPages?Routes.Concat(DetailRoutes):Routes.AsEnumerable();
+        if(includeFormPages)active=active.Concat(FormRoutes);
+        foreach(var route in active)
         {
             var marker=prefix+route.Path;
             var menu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);

@@ -347,7 +347,57 @@ public class HemoDemoSeedTests
             Assert.Equal(detailCount,await db.RoleAccess.CountAsync(ct));
             await HemoDemoSeed.ApplyAsync(db,cfg,ct);
             Assert.Equal(detailCount,await db.RoleAccess.CountAsync(ct));
+            var formPaths=HemoRequestReadRouteSeed.FormRoutes.Select(r=>r.Path).ToArray();
+            Assert.False(await db.Menu.AnyAsync(m=>formPaths.Contains(m.routerLink),ct));
+            var formCfg=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{
+                ["HemoSeed:IncludeBloodRequests"]="true",["HemoSeed:IncludeRequestFormPages"]="true"
+            }).Build();
+            await HemoDemoSeed.ApplyAsync(db,formCfg,ct);
+            db.ChangeTracker.Clear();
+            var formMenus=await db.Menu.Where(m=>formPaths.Contains(m.routerLink)).ToListAsync(ct);
+            Assert.Equal(3,formMenus.Count);
+            Assert.Equal(2,formMenus.Count(m=>m.ShowInMenu));
+            Assert.All(formMenus,m=>{Assert.False(m.IsPublic);Assert.Equal(root.GUID,m.PMenuGUID);Assert.Equal(root.Path+m.Gkey+"/",m.Path);});
+            Assert.True(before.SetEquals(await db.RoleAccess.Select(r=>new{r.RoleGUID,r.ApiGUID}).Distinct().ToListAsync(ct)));
+            foreach(var route in HemoRequestReadRouteSeed.FormRoutes)
+            {
+                var leaf=Assert.Single(formMenus.Where(m=>m.routerLink==route.Path));
+                var actual=await db.RoleAccess.Where(r=>r.MenuGUID==leaf.GUID).ToListAsync(ct);
+                var expected=new HashSet<(Guid,Guid?)>();
+                foreach(var account in accounts.Where(a=>HemoRequestReadRouteSeed.CanOpen(route,a.Permissions)))
+                {
+                    var roleId=roles.Single(r=>r.ConvertID=="HEMO-DEMO-ST02:"+account.Key).GUID;
+                    foreach(var key in route.Mapped.Where(k=>account.Permissions.Contains(k)))
+                    {
+                        var endpoint=HemoDemoSeed.Endpoints.Concat(HemoDemoSeed.BloodRequestEndpoints).Single(e=>e.Key==key);
+                        var api=await db.Api.SingleAsync(a=>a.APITypeName==endpoint.Method&&a.DownstreamPathTemplate==endpoint.Path,ct);
+                        expected.Add((roleId,api.GUID));
+                    }
+                }
+                Assert.True(expected.SetEquals(actual.Select(g=>(g.RoleGUID,g.ApiGUID))));
+            }
+            var formCount=await db.RoleAccess.CountAsync(ct);
+            await HemoDemoSeed.ApplyAsync(db,formCfg,ct);
+            await HemoDemoSeed.ApplyAsync(db,cfg,ct);
+            Assert.Equal(formCount,await db.RoleAccess.CountAsync(ct));
+            Assert.Equal(users,await db.User.CountAsync(ct));
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
+    }
+
+    [Fact]
+    public void BloodRequestFormRoutePolicyRequiresBothAdmissionAndRequestPermissions()
+    {
+        var routes=HemoRequestReadRouteSeed.FormRoutes;
+        var nurse=HemoDemoSeed.BloodRequestAccounts.Single(a=>a.Key=="Nurse").Permissions;
+        var doctor=HemoDemoSeed.BloodRequestAccounts.Single(a=>a.Key=="Doctor").Permissions;
+        var bank=HemoDemoSeed.BloodRequestAccounts.Single(a=>a.Key=="BloodBank").Permissions;
+        Assert.Equal(2,routes.Count(r=>HemoRequestReadRouteSeed.CanOpen(r,nurse)));
+        Assert.Equal(2,routes.Count(r=>HemoRequestReadRouteSeed.CanOpen(r,doctor)));
+        Assert.Empty(routes.Where(r=>HemoRequestReadRouteSeed.CanOpen(r,bank)));
+        Assert.Empty(routes.Where(r=>HemoRequestReadRouteSeed.CanOpen(r,nurse.Where(k=>k!="detail"))));
+        Assert.DoesNotContain(routes.Where(r=>HemoRequestReadRouteSeed.CanOpen(r,nurse)),r=>r.Path=="/hemo/requests/orders");
+        Assert.DoesNotContain(routes.Where(r=>HemoRequestReadRouteSeed.CanOpen(r,doctor)),r=>r.Path=="/hemo/requests/new");
+        Assert.All(routes,r=>Assert.DoesNotContain("request-decide",r.Mapped));
     }
 }

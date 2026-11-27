@@ -3,6 +3,7 @@
 
 | Method | Path | عملیات |
 |---|---|---|
+| GET | /Identity/PatientAdmission/Capabilities | مجوزهای نقش جاری برای UI (بدون افشای اطلاعات بیمار) |
 | POST | /Identity/PatientAdmission | ثبت بیمار/پذیرش در یک SaveChanges |
 | PUT | /Identity/PatientAdmission | ویرایش اطلاعات بستری با version |
 | PUT | /Identity/PatientAdmission/PatientIdentity | اصلاح مشخصات هویتی / تعیین هویت موقت، بدون ادغام خاموش پرونده و با ثبت دلیل |

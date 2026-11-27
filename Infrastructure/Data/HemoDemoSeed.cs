@@ -60,6 +60,11 @@ public static class HemoDemoSeed
             root=new Role{Name="نقش ریشه (ساختاری)",Path="/1/",Gkey=1,Level=1};
             db.Role.Add(root);await db.SaveChangesAsync(ct);
         }
+        // Gkey 2 is reserved by the existing general-login flow. Never assign it to a HEMO clinical role.
+        if(!await db.Role.IgnoreQueryFilters().AnyAsync(r=>r.Gkey>=2,ct))
+        {
+            db.Role.Add(new Role{Name="نقش سیستمی رزرو شده",PRoleGUID=root.GUID});await db.SaveChangesAsync(ct);
+        }
         var org=await db.OrgLocation.SingleOrDefaultAsync(o=>o.ConvertID==Prefix+"Facility",ct);
         if(org==null)
         {

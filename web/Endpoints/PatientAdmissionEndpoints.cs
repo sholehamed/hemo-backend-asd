@@ -27,6 +27,7 @@ public class PatientAdmission : EndpointGroupBase
                     return Results.Unauthorized();
                 return await next(context);
             })
+            .MapGet(GetCapabilities,"Capabilities")
             .MapPost(BindPatientAdmissionPaging,"BindPaging")
             .MapPost(CreatePatientAdmission)
             .MapPut(UpdatePatientAdmission)
@@ -38,6 +39,7 @@ public class PatientAdmission : EndpointGroupBase
             .MapPost(GetPatientAdmissionStats,"Stats")
             .MapPost(ReviewPatientAdmission,"Review");
     }
+    public async Task<Ok<AdmissionCapabilities>> GetCapabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new AdmissionCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<AdmissionView>>> BindPatientAdmissionPaging(ISender sender,PatientAdmissionWithPaginationQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));
     public async Task<Created<Guid>> CreatePatientAdmission(ISender sender,CreatePatientAdmissionCommand command,CancellationToken ct){var id=await sender.Send(command,ct);return TypedResults.Created($"/Identity/PatientAdmission/{id}",id);}
     public async Task<NoContent> UpdatePatientAdmission(ISender sender,UpdateAdmissionCommand command,CancellationToken ct){await sender.Send(command,ct);return TypedResults.NoContent();}

@@ -190,7 +190,8 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
-        var includeDashboardPages=config.GetValue<bool>("HemoSeed:IncludeDashboardPages");
+        var includeR02Pages=config.GetValue<bool>("HemoSeed:IncludeR02Pages");
+        var includeDashboardPages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeDashboardPages");
         var includeDashboardSamples=config.GetValue<bool>("HemoSeed:IncludeDashboardSamples");
         var includeDeliverySamples=includeDashboardSamples||config.GetValue<bool>("HemoSeed:IncludeDeliverySamples");
         var includeQualitySamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeQualitySamples");
@@ -337,27 +338,27 @@ public static class HemoDemoSeed
         }
         var includeCompanyMenuPilot=config.GetValue<bool>("HemoSeed:IncludeCompanyMenuPilot");
         var includeAdmissionReadPages=config.GetValue<bool>("HemoSeed:IncludeAdmissionReadPages");
-        var includeAdmissionCompletePages=config.GetValue<bool>("HemoSeed:IncludeAdmissionCompletePages");
+        var includeAdmissionCompletePages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeAdmissionCompletePages");
         if(includeCompanyMenuPilot||includeAdmissionReadPages||includeAdmissionCompletePages||config.GetValue<bool>("HemoSeed:IncludeAdmissionRouteMenus"))
             await HemoAdmissionRouteSeed.ApplyAsync(db,menu.GUID,apis,accounts,ct,includeCompanyMenuPilot,includeAdmissionReadPages,includeAdmissionCompletePages);
-        var includeRequestFormPages=config.GetValue<bool>("HemoSeed:IncludeRequestFormPages");
-        var includeRequestDetailPages=config.GetValue<bool>("HemoSeed:IncludeRequestDetailPages");
+        var includeRequestFormPages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeRequestFormPages");
+        var includeRequestDetailPages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeRequestDetailPages");
         if(includeRequests&&(includeRequestFormPages||includeRequestDetailPages||config.GetValue<bool>("HemoSeed:IncludeRequestReadPages")))
             await HemoRequestReadRouteSeed.ApplyAsync(db,requestMenu!,apis,accounts,ct,includeRequestDetailPages,includeRequestFormPages);
-        var includeBankUnitPages=config.GetValue<bool>("HemoSeed:IncludeBankUnitPages");
-        var includeBankCompletePages=config.GetValue<bool>("HemoSeed:IncludeBankCompletePages");
+        var includeBankUnitPages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeBankUnitPages");
+        var includeBankCompletePages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeBankCompletePages");
         if(includeBank&&(includeBankCompletePages||includeBankUnitPages||config.GetValue<bool>("HemoSeed:IncludeBankReadPages")))
             await HemoBankReadRouteSeed.ApplyAsync(db,bankMenu!,apis,accounts,ct,includeBankUnitPages,includeBankCompletePages);
-        var includeTransferOperationPages=config.GetValue<bool>("HemoSeed:IncludeTransferOperationPages");
+        var includeTransferOperationPages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeTransferOperationPages");
         if(includeTransfusion&&(includeTransferOperationPages||config.GetValue<bool>("HemoSeed:IncludeTransferReadPages")))
             await HemoTransferReadRouteSeed.ApplyAsync(db,transferMenu!,apis,accounts,ct,includeTransferOperationPages);
-        var includeHvReportPages=config.GetValue<bool>("HemoSeed:IncludeHvReportPages");
+        var includeHvReportPages=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeHvReportPages");
         var includeHvOperationPages=includeHvReportPages||config.GetValue<bool>("HemoSeed:IncludeHvOperationPages");
         if(includeHv&&(includeHvOperationPages||config.GetValue<bool>("HemoSeed:IncludeHvReadPages")))
             await HemoHvReadRouteSeed.ApplyAsync(db,hvMenu!,apis,accounts,ct,includeHvOperationPages,includeHvReportPages);
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
-        var includeQualityOperations=config.GetValue<bool>("HemoSeed:IncludeQualityOperationPages");
+        var includeQualityOperations=includeR02Pages||config.GetValue<bool>("HemoSeed:IncludeQualityOperationPages");
         var includeEquipmentOperations=includeQualityOperations||config.GetValue<bool>("HemoSeed:IncludeEquipmentOperationPages");
         if(includeQuality&&(includeEquipmentOperations||config.GetValue<bool>("HemoSeed:IncludeQualityReadPages")))
             await HemoQualityReadRouteSeed.ApplyAsync(db,qualityMenu!,apis,accounts,ct,includeEquipmentOperations,includeQualityOperations);

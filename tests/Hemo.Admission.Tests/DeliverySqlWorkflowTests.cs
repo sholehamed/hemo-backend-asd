@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Application.Core.RoleAccess_core.Commands.RoleAccessCheckPagePermission;
 using Application.Common.Exceptions;
 using Application.Common.Utility.Security;
 using Application.Core.BloodRequest_core;
@@ -63,18 +64,18 @@ public class DeliverySqlWorkflowTests
         try
         {
             await db.Database.MigrateAsync(ct);
-            var accounts=HemoDemoSeed.DemoAccounts(true,true,true,true,true);
+            var accounts=HemoDemoSeed.DemoAccounts(true,true,true,true,true).Append(HemoDemoSeed.DashboardManager).ToArray();
             var config=accounts.ToDictionary(x=>"HemoSeed:Passwords:"+x.Key,x=>(string?)("T!"+Guid.NewGuid().ToString("N")));
-            config["HemoSeed:IncludeQuality"]="true";
+            config["HemoSeed:IncludeR02Pages"]="true";
             await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(config).Build(),ct);
             var users=await db.UserRole.AsNoTracking().Include(x=>x.User).Include(x=>x.Role).ToListAsync(ct);
-            Assert.Equal(14,users.Count);
+            Assert.Equal(15,users.Count);
             foreach(var account in accounts)
             {
                 var assigned=users.Single(x=>x.User.Username==account.Username);
                 Assert.True(assigned.Role.Gkey>2);
                 var permissions=await db.RoleAccess.Where(x=>x.RoleGUID==assigned.RoleGUID).Select(x=>x.ApiGUID).ToListAsync(ct);
-                Assert.Equal(account.Permissions.Length,permissions.Count);
+                Assert.Equal(account.Permissions.Length,permissions.Distinct().Count());
                 Assert.DoesNotContain(permissions,p=>p==null);
             }
             void Actor(string username)
@@ -83,6 +84,93 @@ public class DeliverySqlWorkflowTests
                 http.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",role.UserGUID.ToString()),new Claim("UserRoles",role.Gkey.ToString())},"Fixture"));
                 http.Request.Headers["UserRole"]=role.Gkey.ToString();
             }
+            // Check the actual company page permission handler against the full activated menu set.
+            var expectedPaths=new[]{
+                "/admission",
+                "/admission/dashboard",
+                "/admission/detail/:guid",
+                "/admission/discharge",
+                "/admission/his",
+                "/admission/history",
+                "/admission/identity",
+                "/admission/list",
+                "/admission/new",
+                "/admission/stats",
+                "/hemo/bank",
+                "/hemo/bank/crossmatch",
+                "/hemo/bank/inventory",
+                "/hemo/bank/lab-history",
+                "/hemo/bank/receive",
+                "/hemo/bank/reports",
+                "/hemo/bank/temperature",
+                "/hemo/bank/thaw",
+                "/hemo/bank/unit/:guid",
+                "/hemo/dashboard",
+                "/hemo/hv",
+                "/hemo/hv/bank",
+                "/hemo/hv/capa",
+                "/hemo/hv/cases",
+                "/hemo/hv/detail/:guid",
+                "/hemo/hv/doctor",
+                "/hemo/hv/new",
+                "/hemo/hv/rca",
+                "/hemo/hv/reports",
+                "/hemo/quality",
+                "/hemo/quality/audit",
+                "/hemo/quality/audit/:guid",
+                "/hemo/quality/committee",
+                "/hemo/quality/committee/:guid",
+                "/hemo/quality/equipment",
+                "/hemo/quality/equipment-dashboard",
+                "/hemo/quality/equipment/:guid",
+                "/hemo/quality/facility",
+                "/hemo/quality/incidents",
+                "/hemo/quality/maintenance",
+                "/hemo/quality/qc",
+                "/hemo/quality/qc/:guid",
+                "/hemo/quality/temperature",
+                "/hemo/quality/training",
+                "/hemo/quality/training/:guid",
+                "/hemo/requests",
+                "/hemo/requests/approval",
+                "/hemo/requests/bank",
+                "/hemo/requests/bank/:guid",
+                "/hemo/requests/detail/:guid",
+                "/hemo/requests/doctor",
+                "/hemo/requests/edit/:guid",
+                "/hemo/requests/new",
+                "/hemo/requests/orders",
+                "/hemo/transfusion",
+                "/hemo/transfusion/detail/:guid",
+                "/hemo/transfusion/dispatch",
+                "/hemo/transfusion/monitoring",
+                "/hemo/transfusion/records",
+                "/hemo/transfusion/returns",
+                "/hemo/transfusion/tasks",
+                "/hemo/transfusion/vitals"
+            };
+            var seededMenus=await db.Menu.AsNoTracking().Where(m=>expectedPaths.Contains(m.routerLink)).ToListAsync(ct);
+            Assert.Equal(expectedPaths.OrderBy(x=>x),seededMenus.Select(m=>m.routerLink).OrderBy(x=>x));
+            Assert.All(seededMenus,m=>Assert.False(m.IsPublic));
+            var menuIds=seededMenus.Select(m=>m.GUID).ToArray();
+            var grants=await db.RoleAccess.AsNoTracking().Where(a=>menuIds.Contains(a.MenuGUID)).ToListAsync(ct);
+            Assert.All(seededMenus,m=>Assert.Contains(grants,g=>g.MenuGUID==m.GUID));
+            Assert.All(grants,g=>Assert.NotNull(g.ApiGUID));
+            var checkPage=new RoleAccessCheckPagePermissionCommandHandler(new RoleAccessService(db,null!),auth);
+            var manager=users.Single(x=>x.User.Username=="hemo.dashboard.manager");
+            foreach(var assignment in users)
+            {
+                Actor(assignment.User.Username);
+                var permitted=grants.Where(g=>g.RoleGUID==assignment.RoleGUID).Select(g=>g.MenuGUID).ToHashSet();
+                foreach(var m in seededMenus)
+                    Assert.Equal(permitted.Contains(m.GUID),await checkPage.Handle(new RoleAccessCheckPagePermissionCommand{Menu=m.routerLink},ct));
+                Assert.False(await checkPage.Handle(new RoleAccessCheckPagePermissionCommand{Menu="/hemo/not-a-route"},ct));
+            }
+            Actor("hemo.dashboard.manager");
+            Assert.True(await checkPage.Handle(new RoleAccessCheckPagePermissionCommand{Menu="/hemo/dashboard"},ct));
+            foreach(var p in new[]{"/admission/new","/admission/list","/admission/detail/:guid","/hemo/requests","/hemo/bank/inventory","/hemo/transfusion/tasks","/hemo/hv/cases","/hemo/quality/equipment/:guid","/hemo/quality/qc/:guid","/hemo/quality/facility"})
+                Assert.False(await checkPage.Handle(new RoleAccessCheckPagePermissionCommand{Menu=p},ct));
+            Assert.Equal(7,grants.Where(g=>g.RoleGUID==manager.RoleGUID).Select(g=>g.ApiGUID).Distinct().Count());
             var roles=new UserRoleService(db,null!,auth);
             var patients=new PatientService(db,null!);var admissions=new PatientAdmissionService(db,null!);var reviews=new PatientAdmissionReviewService(db,null!);
             var create=new CreatePatientAdmissionCommandHandler(patients,admissions,roles,auth);

@@ -2849,6 +2849,166 @@ namespace Infrastructure.SQLServer
                 b.Navigation("BloodRequest");
             });
             modelBuilder.Entity("Domain.Entities.BloodRequest", b => { b.Navigation("Items"); b.Navigation("ClinicalData"); b.Navigation("Approvals"); });
+            modelBuilder.Entity("Domain.Entities.BankBloodUnit", b =>
+            {
+                b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("Created").HasColumnType("datetime2");
+                b.Property<string>("ConvertID").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("CreatedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime>("LastModified").HasColumnType("datetime2");
+                b.Property<Guid>("LastModifiedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("LastModifiedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime?>("Deleted").HasColumnType("datetime2");
+                b.Property<Guid?>("DeletedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("DeletedByIP").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<bool>("IsDelete").HasColumnType("bit");
+                b.Property<Guid>("OrgLocationGUID").HasColumnType("uniqueidentifier");
+                b.Property<string>("UnitCode").IsRequired().HasMaxLength(80).IsUnicode(true).HasColumnType("nvarchar(80)");
+                b.Property<string>("ProductCode").IsRequired().HasMaxLength(32).IsUnicode(true).HasColumnType("nvarchar(32)");
+                b.Property<string>("BloodGroup").IsRequired().HasMaxLength(8).IsUnicode(true).HasColumnType("nvarchar(8)");
+                b.Property<string>("BatchNumber").HasMaxLength(80).IsUnicode(true).HasColumnType("nvarchar(80)");
+                b.Property<string>("SupplySource").IsRequired().HasMaxLength(200).IsUnicode(true).HasColumnType("nvarchar(200)");
+                b.Property<string>("EquipmentCode").IsRequired().HasMaxLength(80).IsUnicode(true).HasColumnType("nvarchar(80)");
+                b.Property<DateTime>("ReceivedAt").HasColumnType("datetime2");
+                b.Property<DateTime>("ExpiresAt").HasColumnType("datetime2");
+                b.Property<string>("Status").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<DateTime?>("InspectionAt").HasColumnType("datetime2");
+                b.Property<Guid?>("BloodRequestGUID").HasColumnType("uniqueidentifier");
+                b.Property<DateTime?>("ThawStartedAt").HasColumnType("datetime2");
+                b.Property<DateTime?>("ThawCompletedAt").HasColumnType("datetime2");
+                b.Property<byte[]>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().IsRequired().HasColumnType("rowversion");
+                b.HasKey("GUID");
+                b.HasIndex("OrgLocationGUID", "UnitCode").IsUnique();
+                b.HasIndex("OrgLocationGUID", "Status", "ExpiresAt");
+                b.HasIndex("BloodRequestGUID", "Status");
+                b.HasIndex("OrgLocationGUID", "EquipmentCode");
+                b.ToTable("BankBloodUnit");
+            });
+            modelBuilder.Entity("Domain.Entities.BankCompatibilityTest", b =>
+            {
+                b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("Created").HasColumnType("datetime2");
+                b.Property<string>("ConvertID").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("CreatedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime>("LastModified").HasColumnType("datetime2");
+                b.Property<Guid>("LastModifiedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("LastModifiedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime?>("Deleted").HasColumnType("datetime2");
+                b.Property<Guid?>("DeletedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("DeletedByIP").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<bool>("IsDelete").HasColumnType("bit");
+                b.Property<Guid>("BankBloodUnitGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("BloodRequestGUID").HasColumnType("uniqueidentifier");
+                b.Property<int>("SubmissionAttempt").HasColumnType("int");
+                b.Property<byte[]>("RequestVersion").HasMaxLength(8).HasColumnType("varbinary(8)");
+                b.Property<byte[]>("AdmissionVersion").HasMaxLength(8).HasColumnType("varbinary(8)");
+                b.Property<Guid>("ActorUserGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("ActorRoleGUID").HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("RecordedAt").HasColumnType("datetime2");
+                b.Property<string>("SampleReference").IsRequired().HasMaxLength(100).IsUnicode(true).HasColumnType("nvarchar(100)");
+                b.Property<string>("SecondSample").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("LabelGroup").IsRequired().HasMaxLength(8).IsUnicode(true).HasColumnType("nvarchar(8)");
+                b.Property<string>("Method").IsRequired().HasMaxLength(100).IsUnicode(true).HasColumnType("nvarchar(100)");
+                b.Property<string>("ImmediateSpin").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("Phase37").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("Ahg").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("Dat").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("AntibodyScreen").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("ReportReference").IsRequired().HasMaxLength(100).IsUnicode(true).HasColumnType("nvarchar(100)");
+                b.Property<string>("Conclusion").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("Notes").HasMaxLength(2000).IsUnicode(true).HasColumnType("nvarchar(2000)");
+                b.HasKey("GUID");
+                b.HasIndex("BankBloodUnitGUID", "BloodRequestGUID", "RecordedAt");
+                b.HasIndex("BloodRequestGUID");
+                b.ToTable("BankCompatibilityTest");
+            });
+            modelBuilder.Entity("Domain.Entities.BankUnitEvent", b =>
+            {
+                b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("Created").HasColumnType("datetime2");
+                b.Property<string>("ConvertID").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("CreatedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime>("LastModified").HasColumnType("datetime2");
+                b.Property<Guid>("LastModifiedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("LastModifiedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime?>("Deleted").HasColumnType("datetime2");
+                b.Property<Guid?>("DeletedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("DeletedByIP").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<bool>("IsDelete").HasColumnType("bit");
+                b.Property<Guid>("BankBloodUnitGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid?>("BloodRequestGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("ActorUserGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("ActorRoleGUID").HasColumnType("uniqueidentifier");
+                b.Property<string>("Action").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("PreviousStatus").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("NewStatus").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<DateTime>("OccurredAt").HasColumnType("datetime2");
+                b.Property<string>("Reason").HasMaxLength(2000).IsUnicode(true).HasColumnType("nvarchar(2000)");
+                b.Property<string>("Method").HasMaxLength(100).IsUnicode(true).HasColumnType("nvarchar(100)");
+                b.Property<decimal?>("Temperature").HasPrecision(7, 2).HasColumnType("decimal(7,2)");
+                b.Property<DateTime?>("EffectiveExpiry").HasColumnType("datetime2");
+                b.HasKey("GUID");
+                b.HasIndex("BankBloodUnitGUID", "OccurredAt");
+                b.HasIndex("BloodRequestGUID");
+                b.ToTable("BankUnitEvent");
+            });
+            modelBuilder.Entity("Domain.Entities.BankTemperatureLog", b =>
+            {
+                b.Property<Guid>("GUID").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("Created").HasColumnType("datetime2");
+                b.Property<string>("ConvertID").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("CreatedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime>("LastModified").HasColumnType("datetime2");
+                b.Property<Guid>("LastModifiedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("LastModifiedByIP").IsRequired().HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<DateTime?>("Deleted").HasColumnType("datetime2");
+                b.Property<Guid?>("DeletedBy").HasColumnType("uniqueidentifier");
+                b.Property<string>("DeletedByIP").HasMaxLength(256).IsUnicode(true).HasColumnType("nvarchar(256)");
+                b.Property<bool>("IsDelete").HasColumnType("bit");
+                b.Property<Guid>("OrgLocationGUID").HasColumnType("uniqueidentifier");
+                b.Property<string>("EquipmentCode").IsRequired().HasMaxLength(80).IsUnicode(true).HasColumnType("nvarchar(80)");
+                b.Property<DateTime>("MeasuredAt").HasColumnType("datetime2");
+                b.Property<DateTime>("RecordedAt").HasColumnType("datetime2");
+                b.Property<decimal>("Temperature").HasPrecision(7, 2).HasColumnType("decimal(7,2)");
+                b.Property<string>("Assessment").IsRequired().HasMaxLength(24).IsUnicode(true).HasColumnType("nvarchar(24)");
+                b.Property<string>("Notes").HasMaxLength(2000).IsUnicode(true).HasColumnType("nvarchar(2000)");
+                b.Property<Guid>("ActorUserGUID").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("ActorRoleGUID").HasColumnType("uniqueidentifier");
+                b.HasKey("GUID");
+                b.HasIndex("OrgLocationGUID", "EquipmentCode", "MeasuredAt");
+                b.HasIndex("OrgLocationGUID", "RecordedAt");
+                b.ToTable("BankTemperatureLog");
+            });
+            modelBuilder.Entity("Domain.Entities.BankBloodUnit", b =>
+            {
+                b.HasOne("Domain.Entities.OrgLocation", "OrgLocation").WithMany().HasForeignKey("OrgLocationGUID").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.Navigation("OrgLocation");
+                b.HasOne("Domain.Entities.BloodRequest", "BloodRequest").WithMany().HasForeignKey("BloodRequestGUID").OnDelete(DeleteBehavior.Restrict);
+                b.Navigation("BloodRequest");
+            });
+            modelBuilder.Entity("Domain.Entities.BankCompatibilityTest", b =>
+            {
+                b.HasOne("Domain.Entities.BankBloodUnit", "Unit").WithMany().HasForeignKey("BankBloodUnitGUID").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.Navigation("Unit");
+                b.HasOne("Domain.Entities.BloodRequest", "BloodRequest").WithMany().HasForeignKey("BloodRequestGUID").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.Navigation("BloodRequest");
+            });
+            modelBuilder.Entity("Domain.Entities.BankUnitEvent", b =>
+            {
+                b.HasOne("Domain.Entities.BankBloodUnit", "Unit").WithMany().HasForeignKey("BankBloodUnitGUID").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.Navigation("Unit");
+                b.HasOne("Domain.Entities.BloodRequest", "BloodRequest").WithMany().HasForeignKey("BloodRequestGUID").OnDelete(DeleteBehavior.Restrict);
+                b.Navigation("BloodRequest");
+            });
+            modelBuilder.Entity("Domain.Entities.BankTemperatureLog", b =>
+            {
+                b.HasOne("Domain.Entities.OrgLocation", "OrgLocation").WithMany().HasForeignKey("OrgLocationGUID").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.Navigation("OrgLocation");
+            });
 #pragma warning restore 612, 618
         }
     }

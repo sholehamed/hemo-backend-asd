@@ -125,3 +125,6 @@
 
 ### ST-03 | final acceptance review
 - Previous head c779e7c5: Release build and all 48 tests green (44 non-SQL, 4 SQL). Final review found a gap between reading admission rowversion and committing a request transition. New request transitions use a serializable SQL transaction and detail reads use a single statement for row/version/history consistency. No existing infrastructure changed. Revalidate with the full existing SQL lifecycle test suite. Later ST-04 must revalidate current admission/decision before any blood allocation or release.
+
+## ST-04 | مدل داده و طرح توسعه
+- چهار موجودیت BankBloodUnit, BankCompatibilityTest, BankUnitEvent, BankTemperatureLog با FK، index، rowversion، migration و تست قواعد وضعیت. مرجع هفت صفحه Raw. هیچ صدور/تحویل یا تصمیم بالینی خودکار. CI هنوز بررسی نشده.

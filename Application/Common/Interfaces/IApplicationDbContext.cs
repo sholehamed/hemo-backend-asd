@@ -44,6 +44,11 @@ public interface  IApplicationDbContext
     public DbSet<RequestClinicalData> RequestClinicalData { get; set; }
     public DbSet<RequestApproval> RequestApproval { get; set; }
 
+    public DbSet<BankBloodUnit> BankBloodUnit { get; set; }
+    public DbSet<BankCompatibilityTest> BankCompatibilityTest { get; set; }
+    public DbSet<BankUnitEvent> BankUnitEvent { get; set; }
+    public DbSet<BankTemperatureLog> BankTemperatureLog { get; set; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
 

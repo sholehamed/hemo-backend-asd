@@ -178,6 +178,8 @@ public static class HemoDemoSeed
         ("create","post","/Identity/PatientAdmission"),("update","put","/Identity/PatientAdmission"),
         ("review","post","/Identity/PatientAdmission/Review"),("identity","put","/Identity/PatientAdmission/PatientIdentity")
     ];
+    // Opt-in aggregate-only managerial role; no patient detail, list or clinical write grants.
+    public static readonly Account DashboardManager=new("DashboardManager","hemo.dashboard.manager","HEMO | مدیر آمار بیمارستان","مدیر آمار",["stats","request-stats","bank-stats","tx-stats","hv-stats","quality-equipment-stats","quality-stats"]);
     private const string Prefix="HEMO-DEMO-ST02:";
     public static async Task SeedHemoDemoAsync(this WebApplication app)
     {
@@ -188,7 +190,8 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
-        var includeDeliverySamples=config.GetValue<bool>("HemoSeed:IncludeDeliverySamples");
+        var includeDashboardSamples=config.GetValue<bool>("HemoSeed:IncludeDashboardSamples");
+        var includeDeliverySamples=includeDashboardSamples||config.GetValue<bool>("HemoSeed:IncludeDeliverySamples");
         var includeQualitySamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeQualitySamples");
         var includeQuality=includeQualitySamples||config.GetValue<bool>("HemoSeed:IncludeQuality");
         var includeHvSamples=includeDeliverySamples||config.GetValue<bool>("HemoSeed:IncludeHemovigilanceSamples");
@@ -198,6 +201,7 @@ public static class HemoDemoSeed
         var includeBank=includeTransfusion||config.GetValue<bool>("HemoSeed:IncludeBloodBank");
         var includeRequests=includeBank||config.GetValue<bool>("HemoSeed:IncludeBloodRequests");
         var accounts=DemoAccounts(includeRequests,includeBank,includeTransfusion,includeHv,includeQuality);
+        if(includeDashboardSamples)accounts=[..accounts,DashboardManager];
         var pending=new Dictionary<string,string>();
         foreach(var account in accounts)
         {
@@ -333,6 +337,7 @@ public static class HemoDemoSeed
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);
+        if(includeDashboardSamples)await HemoDashboardSampleSeed.ApplyAsync(db,org.GUID,ct);
         await tx.CommitAsync(ct);
     }
 }

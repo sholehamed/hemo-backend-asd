@@ -29,10 +29,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-      - name: Build pinned current Angular application without source replacement
+      - name: Build pinned Angular with a CI-only loopback API address
         working-directory: hemo-browser-frontend
         run: |
           npm ci --no-audit --no-fund
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const path='src/environments/environment.ts';
+          const source=readFileSync(path,'utf8');
+          const original="apiUrl: 'http://127.0.0.1:1002'";
+          if(source.split(original).length!==2) throw new Error('Expected exactly one pinned API environment setting');
+          writeFileSync(path,source.replace(original,"apiUrl: 'http://127.0.0.1:18002'"));
+          NODE
           npm run build
       - name: Install isolated browser runner
         shell: bash

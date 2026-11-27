@@ -350,6 +350,8 @@ public static class HemoDemoSeed
         var includeTransferOperationPages=config.GetValue<bool>("HemoSeed:IncludeTransferOperationPages");
         if(includeTransfusion&&(includeTransferOperationPages||config.GetValue<bool>("HemoSeed:IncludeTransferReadPages")))
             await HemoTransferReadRouteSeed.ApplyAsync(db,transferMenu!,apis,accounts,ct,includeTransferOperationPages);
+        if(includeHv&&config.GetValue<bool>("HemoSeed:IncludeHvReadPages"))
+            await HemoHvReadRouteSeed.ApplyAsync(db,hvMenu!,apis,accounts,ct);
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);

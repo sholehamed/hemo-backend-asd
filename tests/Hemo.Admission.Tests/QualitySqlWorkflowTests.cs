@@ -139,4 +139,51 @@ public class QualitySqlWorkflowTests
         }
         finally{await db.Database.EnsureDeletedAsync(ct);}
     }
+
+    [Fact]
+    [Trait("Category","SqlServer")]
+    public async Task DeliverySeedIsRepeatableAndClearanceRejectsUnfinishedOrders()
+    {
+        var connection=Environment.GetEnvironmentVariable("HEMO_TEST_SQL");Assert.False(string.IsNullOrWhiteSpace(connection));
+        var cs=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection){InitialCatalog="Hemo_ST08_"+Guid.NewGuid().ToString("N")};
+        var http=new DefaultHttpContext();var auth=new AuthService(new FixtureContextAccessor{HttpContext=http});
+        var options=new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(cs.ConnectionString)
+            .AddInterceptors(new FixtureAudit(auth),new DispatchDomainEventsInterceptor(null!)).Options;
+        await using var db=new ApplicationDbContext(options,auth);var ct=CancellationToken.None;
+        try
+        {
+            await db.Database.MigrateAsync(ct);
+            var secrets=HemoDemoSeed.DemoAccounts(true,true,true,true,true).ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
+            secrets["HemoSeed:IncludeDeliverySamples"]="true";
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(secrets).Build(),ct);
+            var users=await db.UserRole.AsNoTracking().Include(x=>x.User).ToListAsync(ct);
+            Assert.Equal(14,users.Count);
+            var org=users.Single(x=>x.User.Username=="hemo.admission").OrgLocationGUID;
+            Assert.Equal(8,await db.PatientAdmission.CountAsync(x=>x.OrgLocationGUID==org&&(x.HISNumber.StartsWith("DEMO-ST05-")||x.HISNumber.StartsWith("DEMO-ST06-")),ct));
+            Assert.Equal(4,await db.HemoEquipment.CountAsync(ct));
+            Assert.Equal(4,await db.HemoQualityRecord.CountAsync(ct));
+            Assert.Equal(3,await db.HemoReaction.CountAsync(ct));
+            var before=await db.BankBloodUnit.AsNoTracking().ToDictionaryAsync(x=>x.GUID,x=>x.ExpiresAt,ct);
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"HemoSeed:IncludeDeliverySamples","true"}}).Build(),ct);
+            Assert.Equal(14,await db.UserRole.CountAsync(ct));
+            Assert.Equal(before.Count,await db.BankBloodUnit.CountAsync(ct));
+            foreach(var u in await db.BankBloodUnit.AsNoTracking().ToListAsync(ct))Assert.Equal(before[u.GUID],u.ExpiresAt);
+            Assert.Equal(3,await db.HemoReaction.CountAsync(ct));
+            var actor=users.Single(x=>x.User.Username=="hemo.admission");
+            db.ChangeTracker.Clear();
+            http.User=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("Id",actor.UserGUID.ToString()),new Claim("UserRoles",actor.Gkey.ToString())},"Fixture"));
+            http.Request.Headers["UserRole"]=actor.Gkey.ToString();
+            var roles=new UserRoleService(db,null!,auth);
+            var review=new ReviewAdmissionCommandHandler(new PatientAdmissionService(db,null!),new PatientAdmissionReviewService(db,null!),roles,auth);
+            var a=await db.PatientAdmission.AsNoTracking().SingleAsync(x=>x.HISNumber=="DEMO-ST05-01"&&x.OrgLocationGUID==org,ct);
+            await review.Handle(new ReviewAdmissionCommand(a.GUID,"History","Reviewed",0,"Synthetic history",a.Version),ct);
+            db.ChangeTracker.Clear();a=await db.PatientAdmission.AsNoTracking().SingleAsync(x=>x.GUID==a.GUID,ct);
+            var count=await db.PatientAdmissionReview.CountAsync(x=>x.PatientAdmissionGUID==a.GUID,ct);
+            await Assert.ThrowsAsync<ServiceExeption>(()=>review.Handle(new ReviewAdmissionCommand(a.GUID,"Clearance","Ready",31,"Fixture",a.Version),ct));
+            db.ChangeTracker.Clear();
+            Assert.Equal("Active",(await db.PatientAdmission.AsNoTracking().SingleAsync(x=>x.GUID==a.GUID,ct)).Status);
+            Assert.Equal(count,await db.PatientAdmissionReview.CountAsync(x=>x.PatientAdmissionGUID==a.GUID,ct));
+        }
+        finally{await db.Database.EnsureDeletedAsync(ct);}
+    }
 }

@@ -339,6 +339,8 @@ public static class HemoDemoSeed
         var includeAdmissionCompletePages=config.GetValue<bool>("HemoSeed:IncludeAdmissionCompletePages");
         if(includeCompanyMenuPilot||includeAdmissionReadPages||includeAdmissionCompletePages||config.GetValue<bool>("HemoSeed:IncludeAdmissionRouteMenus"))
             await HemoAdmissionRouteSeed.ApplyAsync(db,menu.GUID,apis,accounts,ct,includeCompanyMenuPilot,includeAdmissionReadPages,includeAdmissionCompletePages);
+        if(includeRequests&&config.GetValue<bool>("HemoSeed:IncludeRequestReadPages"))
+            await HemoRequestReadRouteSeed.ApplyAsync(db,requestMenu!,apis,accounts,ct);
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);

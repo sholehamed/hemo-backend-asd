@@ -25,12 +25,25 @@ public static class HemoAdmissionRouteSeed
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Guid admissionMenuGuid,
-        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct)
+        IReadOnlyDictionary<string,Guid> apis,IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeCompanyMenuPilot=false)
     {
         const string prefix="HEMO-R02-ADMISSION:";
         var existingAdmission=await db.Menu.SingleAsync(m=>m.GUID==admissionMenuGuid,ct);
-        // Keep existing parent menu navigation intact: visible pilot pages are siblings.
-        // Package hierarchy/subpath integration is a separate approval gate.
+        // Only the currently active report page is exposed under the company SubPath.
+        // Keep other pilot routes in their original locations until their UI is connected.
+        var companyRoot=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
+        const string rootMarker="HEMO-R02-COMPANY-MENU";
+        if(includeCompanyMenuPilot)
+        {
+            if(companyRoot==null)
+            {
+                companyRoot=new Menu{routerLink="/Hemo",label="هموویژیلانس",icon="pi pi-heart",ShowInMenu=true,IsPublic=false,ConvertID=rootMarker};
+                db.Menu.Add(companyRoot);await db.SaveChangesAsync(ct);
+            }
+            else if(companyRoot.ConvertID!=rootMarker||companyRoot.PMenuGUID!=null||companyRoot.IsPublic||!companyRoot.ShowInMenu)
+                throw new InvalidOperationException("Existing /Hemo menu is not owned by the demo pilot; configure it through the company menu administration.");
+        }
+        var ownedRoot=companyRoot?.ConvertID==rootMarker&&companyRoot.PMenuGUID==null&&!companyRoot.IsPublic&&companyRoot.ShowInMenu?companyRoot:null;
         var roles=new List<(Guid Id,HashSet<string> Keys)>();
         foreach(var account in accounts)
         {
@@ -43,14 +56,26 @@ public static class HemoAdmissionRouteSeed
         {
             var marker=prefix+route.Path;
             var menu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);
+            var parent=route.Path=="/admission/stats"&&ownedRoot!=null&&(includeCompanyMenuPilot||menu?.PMenuGUID==ownedRoot.GUID)?ownedRoot.GUID:existingAdmission.PMenuGUID;
             if(menu==null)
             {
                 menu=new Menu{routerLink=route.Path,label=route.Label,icon=route.Icon,ShowInMenu=route.ShowInMenu,
-                    IsPublic=false,PMenuGUID=existingAdmission.PMenuGUID,ConvertID=marker};
+                    IsPublic=false,PMenuGUID=parent,ConvertID=marker};
                 db.Menu.Add(menu);await db.SaveChangesAsync(ct);
             }
-            else if(menu.ConvertID!=marker||menu.IsPublic||menu.ShowInMenu!=route.ShowInMenu||menu.PMenuGUID!=existingAdmission.PMenuGUID)
+            else if(menu.ConvertID!=marker||menu.IsPublic||menu.ShowInMenu!=route.ShowInMenu )
                 throw new InvalidOperationException("Existing menu conflicts with R02 admission seed: "+route.Path);
+            else if(menu.PMenuGUID!=parent)
+            {
+                if(route.Path!="/admission/stats"||!includeCompanyMenuPilot||ownedRoot==null||menu.PMenuGUID!=existingAdmission.PMenuGUID||
+                    await db.Menu.AnyAsync(m=>m.PMenuGUID==menu.GUID,ct))
+                    throw new InvalidOperationException("Existing menu hierarchy conflicts with R02 admission seed: "+route.Path);
+                // Reparent only the seed-owned leaf. Menu.OnModified recalculates its path.
+                menu.PMenuGUID=parent;
+                await db.SaveChangesAsync(ct);
+                if(menu.Path!=ownedRoot.Path+menu.Gkey+"/")
+                    throw new InvalidOperationException("Company menu path was not recalculated.");
+            }
             // For create, detail is required for the successful navigation to the
             // detail page; do not map a detail GET onto the create form itself.
             var keys=route.Required.Concat(route.Optional).Where(k=>route.Path!="/admission/new"||k!="detail").Distinct().ToArray();

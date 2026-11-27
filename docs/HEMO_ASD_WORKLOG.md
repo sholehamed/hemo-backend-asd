@@ -209,3 +209,9 @@
 
 ### ST08 | CI verification
 - GitHub-hosted run 46036819262 on 8c1173af45a72af6cd352c0f084a41b8e01eaa9e: Release Build PASS; 106/106 non-SQL and 10/10 SQL tests PASS, including new fresh-record workflow, aggregate seed and clearance regression; migration on isolated SQL PASS. No live company DB, real browser/API or clinical acceptance claimed. Partial request disposition remains a known functional limitation. PR #9 remains open pending frontend gate and final acceptance.
+
+## ST-09 | داشبوردهای نقش‌محور و آمار
+- ST09-01: حساب DashboardManager فقط هفت endpoint آماری موجود را دریافت می‌کند؛ به scope و RoleAccess مشترک دست زده نشد. هیچ grant جدید برای ۱۴ نقش موجود.
+- ST09-02: فلگ opt-in IncludeDashboardSamples، Seed یکپارچه ST08 و ده پذیرش تاریخی ساختگی برای نمایش هفتگی، بدون تغییر تاریخ/رمز در اجرای مجدد. Schema و migration جدید لازم نیست.
+- ST09-03: تست SQL مستقل برای ۱۵ حساب، ۷ grant، تکرارپذیری، مقایسه بازه، منع دسترسی به فهرست پذیرش و تجهیزات و APIهای آماری. نتیجه CI هنوز NOT RUN/در انتظار نتیجه.
+- ST09-04: راهنمای Seed و حساب جدید. طراحی نرخ بالینی، دسترسی مدیر به جزئیات بیمار و داده تاریخی واقعی خارج از این مرحله است.

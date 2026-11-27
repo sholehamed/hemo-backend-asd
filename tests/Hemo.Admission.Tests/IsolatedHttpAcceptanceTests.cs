@@ -419,8 +419,9 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             Actor("hemo.quality.reviewer");await QualityReview("Audit",auditRow.Guid,"Approve");
             auditDetail=await Quality("Audit",auditRow.Guid);Assert.Equal("Approved",auditDetail.Record.Status);Assert.Equal(3,auditDetail.AuditScore);Assert.Equal(4,auditDetail.AuditMaximum);
             var qcRow=await SingleQuality("Qc");await QualityReview("Qc",qcRow.Guid,"Reject");
-            // A rejected QC is returned for correction; re-submit with the authorized officer.
-            Actor("hemo.quality.officer");await QualityReview("Qc",qcRow.Guid,"Submit");
+            // A rejected QC is returned for correction; only the original seeded bank author can resubmit.
+            Actor("hemo.quality.officer");await QualityReview("Qc",qcRow.Guid,"Submit",HttpStatusCode.BadRequest);
+            Actor("hemo.bloodbank");await QualityReview("Qc",qcRow.Guid,"Submit");
             Actor("hemo.quality.reviewer");await QualityReview("Qc",qcRow.Guid,"Approve");
             Assert.Equal("Approved",(await Quality("Qc",qcRow.Guid)).Record.Status);
             Actor("hemo.quality.officer");

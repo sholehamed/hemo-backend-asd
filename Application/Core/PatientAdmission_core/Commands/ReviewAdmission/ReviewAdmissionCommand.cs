@@ -17,14 +17,14 @@ public class ReviewAdmissionCommandHandler(PatientAdmissionService admissions,Pa
 {
     public async Task Handle(ReviewAdmissionCommand r,CancellationToken ct)
     {
-        var scope=await AdmissionScope.GetAsync(roles,auth,ct);
+        var scope=await AdmissionScope.GetAsync(roles,auth,"post","/Identity/PatientAdmission/Review",ct);
         var a=await admissions.Table.SingleOrDefaultAsync(x=>x.GUID==r.Guid&&x.OrgLocationGUID==scope.OrgLocationGUID,ct)??throw new ServiceExeption("پرونده یافت نشد.");
         if(!a.Version.SequenceEqual(r.Version))throw new ServiceExeption("پرونده تغییر کرده است؛ دوباره بارگذاری کنید.");
         var now=DateTime.UtcNow;
         switch(r.Kind)
         {
-            case "Identity":a.IdentityStatus=r.Outcome;a.IdentityReviewedAt=now;if(r.Outcome=="Mismatch")a.Status="Active";break;
-            case "History":a.HistoryReviewedAt=now;break;
+            case "Identity":a.IdentityStatus=r.Outcome;a.IdentityReviewedAt=now;a.Status="Active";a.ClearanceChecklist=0;a.ClearanceReviewedAt=null;a.ClearanceNotes=null;break;
+            case "History":a.HistoryReviewedAt=now;a.Status="Active";a.ClearanceChecklist=0;a.ClearanceReviewedAt=null;a.ClearanceNotes=null;break;
             case "Clearance":
                 if(r.Outcome=="Ready"&&(a.IdentityStatus!="Verified"||!a.HistoryReviewedAt.HasValue))throw new ServiceExeption("تطبیق هویت و بررسی سوابق باید ابتدا ثبت شود.");
                 // A documented readiness review, not an actual HIS discharge or automated clinical authorization.

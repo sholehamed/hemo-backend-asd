@@ -33,7 +33,7 @@ public class CreatePatientAdmissionCommandHandler(PatientService patients, Patie
 {
     public async Task<Guid> Handle(CreatePatientAdmissionCommand r, CancellationToken ct)
     {
-        var scope = await AdmissionScope.GetAsync(roles,auth,ct);
+        var scope = await AdmissionScope.GetAsync(roles,auth,"post","/Identity/PatientAdmission",ct);
         var identity = r.IdentificationType == "Unknown" ? "UNK-" + Guid.NewGuid().ToString("N").ToUpperInvariant() : AdmissionRules.NormalizeIdentity(r.IdentificationNumber);
         var number = AdmissionRules.NormalizeIdentity(r.HisNumber);
         if (await admissions.Table.AnyAsync(x=>x.OrgLocationGUID==scope.OrgLocationGUID && x.HISNumber==number,ct))

@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "menu": {
+    "label": "پذیرش بیمارستان",
+    "routerLink": "/admission",
+    "icon": "pi pi-id-card",
+    "showInMenu": true,
+    "isPublic": false
+  },
+  "roleGrant": "explicit admin approval via existing RoleAccess APIs; do not grant automatically",
+  "scope": "current OrgLocationGUID",
+  "apis": [
+    {
+      "method": "post",
+      "path": "/Identity/PatientAdmission",
+      "title": "ثبت پذیرش"
+    },
+    {
+      "method": "put",
+      "path": "/Identity/PatientAdmission",
+      "title": "ویرایش بستری"
+    },
+    {
+      "method": "put",
+      "path": "/Identity/PatientAdmission/PatientIdentity",
+      "title": "اصلاح هویت"
+    },
+    {
+      "method": "post",
+      "path": "/Identity/PatientAdmission/BindPaging",
+      "title": "فهرست"
+    },
+    {
+      "method": "get",
+      "path": "/Identity/PatientAdmission/{guid}",
+      "title": "جزئیات"
+    },
+    {
+      "method": "get",
+      "path": "/Identity/PatientAdmission/FindPatient",
+      "title": "استعلام داخلی"
+    },
+    {
+      "method": "get",
+      "path": "/Identity/PatientAdmission/{guid}/History",
+      "title": "سوابق پذیرش"
+    },
+    {
+      "method": "get",
+      "path": "/Identity/PatientAdmission/{guid}/Reviews",
+      "title": "تاریخچه بررسی"
+    },
+    {
+      "method": "post",
+      "path": "/Identity/PatientAdmission/Stats",
+      "title": "آمار"
+    },
+    {
+      "method": "post",
+      "path": "/Identity/PatientAdmission/Review",
+      "title": "ثبت بررسی"
+    }
+  ],
+  "routes": [
+    "/admission",
+    "/admission/new",
+    "/admission/list",
+    "/admission/detail/:guid",
+    "/admission/identity",
+    "/admission/history",
+    "/admission/discharge",
+    "/admission/his",
+    "/admission/stats"
+  ]
+}

@@ -15,7 +15,7 @@ public class UpdateAdmissionCommandHandler(PatientAdmissionService admissions,Us
 {
     public async Task Handle(UpdateAdmissionCommand r,CancellationToken ct)
     {
-        var scope=await AdmissionScope.GetAsync(roles,auth,ct);
+        var scope=await AdmissionScope.GetAsync(roles,auth,"put","/Identity/PatientAdmission",ct);
         var a=await admissions.Table.SingleOrDefaultAsync(x=>x.GUID==r.Guid&&x.OrgLocationGUID==scope.OrgLocationGUID,ct)??throw new ServiceExeption("پرونده یافت نشد.");
         if(!a.Version.SequenceEqual(r.Version))throw new ServiceExeption("پرونده تغییر کرده است؛ دوباره بارگذاری کنید.");
         a.Ward=r.Ward.Trim();a.BedNumber=r.BedNumber.Trim();a.Physician=r.Physician.Trim();a.Diagnosis=r.Diagnosis;a.Insurance=r.Insurance;a.Notes=r.Notes;

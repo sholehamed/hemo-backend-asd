@@ -10,7 +10,7 @@ public class BloodBank : EndpointGroupBase
 {
     public override void Map(WebApplication app)
     {
-        app.MapGroup(this).RequireAuthorization()
+        var group=app.MapGroup(this).RequireAuthorization()
             .AddEndpointFilter(async (context,next) =>
             {
                 var http=context.HttpContext;
@@ -21,10 +21,24 @@ public class BloodBank : EndpointGroupBase
                    !Guid.TryParse(key,out _) || !service.CheckToken(key!))
                     return Results.Unauthorized();
                 return await next(context);
-            })
-            .MapGet(Capabilities,"Capabilities").MapPost(Inventory,"Inventory").MapGet(Unit,"Unit/{guid:guid}").MapPost(Stats,"Stats")
-            .MapPost(TemperatureHistory,"TemperatureHistory").MapPost(LabHistory,"LabHistory").MapPost(Receive,"Receive").MapPost(Test,"Test").MapPost(Temperature,"Temperature").MapPost(ReturnRequest,"ReturnRequest")
-            .MapPost(Inspect,"Inspect").MapPost(Reserve,"Reserve").MapPost(Thaw,"Thaw").MapPost(Ready,"Ready").MapPost(Hold,"Hold").MapPost(Unreserve,"Unreserve").MapPost(Discard,"Discard");
+            });
+        group.MapGet("Capabilities", Capabilities).WithName("HEMO.BloodBank.Capabilities");
+        group.MapPost("Inventory", Inventory).WithName("HEMO.BloodBank.Inventory");
+        group.MapGet("Unit/{guid:guid}", Unit).WithName("HEMO.BloodBank.Unit");
+        group.MapPost("Stats", Stats).WithName("HEMO.BloodBank.Stats");
+        group.MapPost("TemperatureHistory", TemperatureHistory).WithName("HEMO.BloodBank.TemperatureHistory");
+        group.MapPost("LabHistory", LabHistory).WithName("HEMO.BloodBank.LabHistory");
+        group.MapPost("Receive", Receive).WithName("HEMO.BloodBank.Receive");
+        group.MapPost("Test", Test).WithName("HEMO.BloodBank.Test");
+        group.MapPost("Temperature", Temperature).WithName("HEMO.BloodBank.Temperature");
+        group.MapPost("ReturnRequest", ReturnRequest).WithName("HEMO.BloodBank.ReturnRequest");
+        group.MapPost("Inspect", Inspect).WithName("HEMO.BloodBank.Inspect");
+        group.MapPost("Reserve", Reserve).WithName("HEMO.BloodBank.Reserve");
+        group.MapPost("Thaw", Thaw).WithName("HEMO.BloodBank.Thaw");
+        group.MapPost("Ready", Ready).WithName("HEMO.BloodBank.Ready");
+        group.MapPost("Hold", Hold).WithName("HEMO.BloodBank.Hold");
+        group.MapPost("Unreserve", Unreserve).WithName("HEMO.BloodBank.Unreserve");
+        group.MapPost("Discard", Discard).WithName("HEMO.BloodBank.Discard");
     }
     public async Task<Ok<BankCapabilities>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new BankCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<UnitRow>>> Inventory(ISender sender,BankInventoryQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));

@@ -19,6 +19,19 @@ public class BloodRequestWorkflowTests
     [InlineData("Draft","Approve",null)]
     [InlineData("AwaitingDoctor","Submit",null)]
     public void ValidatesTransitions(string state,string action,string? next)=>Assert.Equal(next,BloodRequestWorkflow.Next(state,action));
+    [Theory]
+    [InlineData("Nurse","RBC",true)]
+    [InlineData("Nurse","Autologous",false)]
+    [InlineData("Doctor","Autologous",true)]
+    [InlineData("Doctor","InterHospital",false)]
+    public void FormSourceIsExplicit(string source,string form,bool expected)=>Assert.Equal(expected,BloodRequestWorkflow.SourceAllowsForm(source,form));
+    [Fact]
+    public void SpecializedFormRequiresMatchingProduct()
+    {
+        Assert.True(BloodRequestWorkflow.FormMatchesItems("WashedRBC",new[]{new BloodRequestItem{ProductCode="WashedLRRBC",Quantity=1}}));
+        Assert.False(BloodRequestWorkflow.FormMatchesItems("WashedRBC",new[]{new BloodRequestItem{ProductCode="RBC",Quantity=1}}));
+        Assert.True(BloodRequestWorkflow.FormMatchesItems("FFP",new[]{new BloodRequestItem{ProductCode="FFP",Quantity=1}}));
+    }
     [Fact]
     public void ValidatesProductAndQuantityWithoutInferringClinicalIndication()
     {

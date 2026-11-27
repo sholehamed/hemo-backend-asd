@@ -60,7 +60,7 @@ public class BloodRequestCommandHandler(BloodRequestService requests,UserRoleSer
         foreach(var inputLine in input.Items)
         {
             var item=all.SingleOrDefault(x=>x.ProductCode==inputLine.ProductCode);
-            if(item==null){item=new BloodRequestItem{BloodRequestGUID=r.GUID,ProductCode=inputLine.ProductCode};r.Items.Add(item);}
+            if(item==null){item=new BloodRequestItem{BloodRequestGUID=r.GUID,ProductCode=inputLine.ProductCode};r.Items.Add(item);Db.BloodRequestItem.Add(item);}
             item.IsDelete=false;item.Deleted=null;item.DeletedBy=null;item.DeletedByIP=null;
             item.Quantity=inputLine.Quantity;item.RequestedBloodGroup=inputLine.RequestedBloodGroup;item.SpecialInstructions=inputLine.SpecialInstructions;
         }
@@ -80,6 +80,7 @@ public class BloodRequestCommandHandler(BloodRequestService requests,UserRoleSer
     {
         var user=await BloodRequestAccess.Require(roles,auth,"post",endpoint,true,ct);
         Validate(new RequestInputValidator(),input);
+        if(!BloodRequestWorkflow.SourceAllowsForm(source,input.FormType))throw Error("این فرم برای نوع ثبت‌کننده مجاز نیست.");
         var admission=await Admission(input.PatientAdmissionGuid,user,ct);
         var existing=await requests.Table.AsNoTracking().SingleOrDefaultAsync(x=>x.ClientRequestId==input.ClientRequestId,ct);
         if(existing!=null)
@@ -102,6 +103,7 @@ public class BloodRequestCommandHandler(BloodRequestService requests,UserRoleSer
         var r=await Load(command.Guid,user,ct);Owner(r,user);CheckVersion(r,command.Version);
         if(!BloodRequestWorkflow.CanEdit(r.Status)||r.PatientAdmission.Status!="Active"||r.PatientAdmissionGUID!=command.Input.PatientAdmissionGuid||r.ClientRequestId!=command.Input.ClientRequestId)
             throw Error("این درخواست قابل ویرایش نیست.");
+        if(!BloodRequestWorkflow.SourceAllowsForm(r.Source,command.Input.FormType))throw Error("این فرم برای نوع ثبت‌کننده مجاز نیست.");
         var existing=await Db.BloodRequestItem.IgnoreQueryFilters().Where(x=>x.BloodRequestGUID==r.GUID).ToListAsync(ct);
         Apply(r,command.Input,existing);await Save(ct);
     }
@@ -111,6 +113,7 @@ public class BloodRequestCommandHandler(BloodRequestService requests,UserRoleSer
             throw Error("پذیرش فعال و تطبیق هویت ثبت‌شده لازم است.");
         if(!BloodRequestWorkflow.HasValidItems(r.Items)||r.ClinicalData==null||string.IsNullOrWhiteSpace(r.ClinicalData.ClinicalIndication))
             throw Error("اقلام و علت بالینی درخواست باید تکمیل شود.");
+        if(!BloodRequestWorkflow.FormMatchesItems(r.FormType,r.Items))throw Error("اقلام با نوع فرم اختصاصی مطابقت ندارد.");
         var details=Clinical(r).FormDetails;
         if(r.FormType is "WashedRBC" or "Irradiated" or "Apheresis" or "Emergency" or "Autologous")
             if(string.IsNullOrWhiteSpace(details?.SpecialReason))throw Error("علت اختصاصی فرم را ثبت کنید.");

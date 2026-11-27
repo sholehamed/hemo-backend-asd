@@ -17,6 +17,9 @@ public static class HemoHvReadRouteSeed
         new("/hemo/hv/new","ثبت گزارش واکنش","pi pi-plus","hv-candidates",["hv-candidates","hv-report"],null,true,["hv-report","hv-detail"]),
         new("/hemo/hv/detail/:guid","جزئیات و بررسی پرونده واکنش","pi pi-file","hv-detail",["hv-detail","hv-observe","hv-doctor","hv-bank","hv-investigate","hv-return","hv-rca","hv-assign","hv-owners","hv-progress","hv-verify","hv-close","hv-external"],null,false)
     ];
+    public static readonly Route[] ReportRoutes=[
+        new("/hemo/hv/reports","گزارش دوره‌ای و آرشیو","pi pi-chart-bar","hv-reports",["hv-reports","hv-report-detail","hv-stats","hv-archive","hv-report-external"],null,true,["hv-report-detail"])
+    ];
     public static bool CanOpen(Route route,IEnumerable<string> keys)
     {
         var allowed=keys.ToHashSet(StringComparer.Ordinal);
@@ -24,7 +27,7 @@ public static class HemoHvReadRouteSeed
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Menu original,IReadOnlyDictionary<string,Guid> apis,
-        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeOperations=false)
+        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeOperations=false,bool includeReports=false)
     {
         const string rootMarker="HEMO-R02-COMPANY-MENU";
         var root=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
@@ -54,7 +57,7 @@ public static class HemoHvReadRouteSeed
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(k=>apis.TryGetValue(k,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in includeOperations?Routes.Concat(OperationRoutes):Routes)
+        foreach(var route in Routes.Concat(includeOperations?OperationRoutes:Array.Empty<Route>()).Concat(includeReports?ReportRoutes:Array.Empty<Route>()))
         {
             var marker="HEMO-R02-HV:"+route.Path;
             var leaf=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);

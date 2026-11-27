@@ -112,3 +112,7 @@
 
 ## 2026-11-27 — ST-02 acceptance / seed
 - Prior CI both latest PR/push green. Found ordinary login only emits role Gkey 1/2 absent package; added HEMO-specific endpoint using existing login handler/Captcha/OTP and token issuance, selecting authorized HEMO assignments. Existing login behavior retained. Added local admission endpoint expiry/session validation and blocked/force-change role checks. Development-only opt-in seed for three accounts, exact API grants, facility and menu; no fixed secrets or privileged users, no changes to existing seed. Requires CI and actual organizational environment verification.
+
+## ST-03 | آغاز درخواست خون
+- ST-01/ST-02 در main ادغام شدند؛ PR Backend #3 و Frontend #2. آخرین CI Backend 25/25، Frontend 12/12 PASS.
+- شاخه جداگانه ST-03؛ چهار موجودیت درخواست، اقلام، اطلاعات بالینی و تاریخچه تصمیم؛ EF configs، migration، repository services و قواعد گردش‌کار با تست. API، permission و UI هنوز در این اسلایس تکمیل نشده‌اند. CI این commit باید بررسی شود. سند اسلایس‌ها: docs/blood-requests/ST03_PLAN_FA.md.

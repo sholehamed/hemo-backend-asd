@@ -18,6 +18,7 @@ public class ReviewAdmissionCommandHandler(PatientAdmissionService admissions,Pa
     public async Task Handle(ReviewAdmissionCommand r,CancellationToken ct)
     {
         var scope=await AdmissionScope.GetAsync(roles,auth,"post","/Identity/PatientAdmission/Review",ct);
+        await using var tx=await ((DbContext)admissions.db).Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         var a=await admissions.Table.SingleOrDefaultAsync(x=>x.GUID==r.Guid&&x.OrgLocationGUID==scope.OrgLocationGUID,ct)??throw new ServiceExeption("پرونده یافت نشد.");
         if(!a.Version.SequenceEqual(r.Version))throw new ServiceExeption("پرونده تغییر کرده است؛ دوباره بارگذاری کنید.");
         var now=DateTime.UtcNow;
@@ -27,11 +28,12 @@ public class ReviewAdmissionCommandHandler(PatientAdmissionService admissions,Pa
             case "History":a.HistoryReviewedAt=now;a.Status="Active";a.ClearanceChecklist=0;a.ClearanceReviewedAt=null;a.ClearanceNotes=null;break;
             case "Clearance":
                 if(r.Outcome=="Ready"&&(a.IdentityStatus!="Verified"||!a.HistoryReviewedAt.HasValue))throw new ServiceExeption("تطبیق هویت و بررسی سوابق باید ابتدا ثبت شود.");
+                if(r.Outcome=="Ready")await AdmissionClearanceGuard.RequireNoActiveBloodFlow(admissions.db,a.GUID,a.OrgLocationGUID,ct);
                 // A documented readiness review, not an actual HIS discharge or automated clinical authorization.
                 a.ClearanceChecklist=r.Checklist;a.ClearanceNotes=r.Notes;a.ClearanceReviewedAt=now;a.Status=r.Outcome=="Ready"?"ReadyForDischarge":"Active";break;
             default:throw new ServiceExeption("عملیات نامعتبر است.");
         }
         reviews.Table.Add(new PatientAdmissionReview{PatientAdmissionGUID=a.GUID,Kind=r.Kind,Outcome=r.Outcome,Checklist=r.Checklist,Notes=r.Notes,ReviewedAt=now});
-        try{await admissions.SaveChangesAsync(ct);}catch(DbUpdateConcurrencyException){throw new ServiceExeption("پرونده همزمان تغییر کرده است؛ دوباره بارگذاری کنید.");}
+        try{await admissions.SaveChangesAsync(ct);await tx.CommitAsync(ct);}catch(DbUpdateConcurrencyException){throw new ServiceExeption("پرونده همزمان تغییر کرده است؛ دوباره بارگذاری کنید.");}
     }
 }

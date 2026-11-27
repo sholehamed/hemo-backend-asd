@@ -1,0 +1,14 @@
+namespace Application.Core.Quality_core;
+public record EquipmentInput(string Code,string Name,string Category,string BrandModel,string Ward,string? SerialNumber=null);
+public record EquipmentEdit(Guid Guid,byte[] Version,string Name,string Category,string BrandModel,string Ward,string? SerialNumber,string Notes);
+public record ServiceInput(Guid Guid,byte[] Version,string Kind,DateTimeOffset PerformedAt,DateTimeOffset? DueAt,string Reference,string Provider,string Result,string Checks,string Notes);
+public record EquipmentActionInput(Guid Guid,byte[] Version,string Notes,string? Reference=null);
+public record IncidentInput(Guid Guid,byte[] Version,string Urgency,string Description);
+public record IncidentResolve(Guid Guid,byte[] Version,byte[] EquipmentVersion,string Resolution,string Reference);
+public record EquipmentTemperatureInput(Guid Guid,byte[] Version,DateTimeOffset MeasuredAt,string Shift,decimal Temperature,decimal Minimum,decimal Maximum,bool AlarmChecked,bool DoorChecked,bool PowerChecked,string Assessment,string Notes);
+public record EquipmentFilter(string? Search=null,string? Category=null,string? Ward=null,string? Status=null,int PageNumber=1,int PageSize=20);
+public record EquipmentRow(Guid Guid,string Code,string Name,string Category,string BrandModel,string Ward,string? SerialNumber,string Status,DateTime? CalibrationAt,DateTime? CalibrationDueAt,DateTime? MaintenanceDueAt,byte[] Version);
+public record EquipmentEventRow(string Kind,string PreviousStatus,string NewStatus,DateTime OccurredAt,Guid ActorUserGuid,string Notes,string? Reference,string? Provider,DateTime? DueAt,string? EvidenceJson);
+public record IncidentRow(Guid Guid,Guid EquipmentGuid,string Code,string EquipmentName,string IncidentNumber,string Urgency,string Status,DateTime ReportedAt,string Description,Guid ReporterUserGuid,string? Resolution,string? ResolutionReference,DateTime? ResolvedAt,byte[] Version,byte[] EquipmentVersion);
+public record EquipmentDetail(EquipmentRow Equipment,List<EquipmentEventRow> Events,List<IncidentRow> Incidents,List<Application.Core.BloodBank_core.TemperatureView> Temperatures,int StoredUnits,bool Demo);
+public record EquipmentSummary(int Total,int Operational,int Hold,int Archived,int ServiceDue,int OpenIncidents,int LegacyCodes,List<string> UnregisteredCodes);

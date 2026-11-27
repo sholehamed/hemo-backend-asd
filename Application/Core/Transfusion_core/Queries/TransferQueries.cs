@@ -34,7 +34,7 @@ public class TransferQueryHandler(BloodTransferService transfers,UserRoleService
         var a=await TransferAccess.Require(roles,auth,"post","/Candidates",ct);var now=DateTime.UtcNow;
         var q=Db.BankBloodUnit.AsNoTracking().Where(u=>u.OrgLocationGUID==a.OrgLocationGUID&&u.Status==BankRules.Ready&&u.ExpiresAt>now&&u.BloodRequestGUID.HasValue&&
             u.BloodRequest!.PatientAdmission.OrgLocationGUID==a.OrgLocationGUID&&u.BloodRequest.Status=="AwaitingBank"&&u.BloodRequest.PatientAdmission.Status=="Active"&&
-            u.BloodRequest.PatientAdmission.IdentityStatus=="Verified"&&!u.BloodRequest.PatientAdmission.Patient.IsDelete&&!Db.BloodTransfer.Any(t=>t.BankBloodUnitGUID==u.GUID));
+            u.BloodRequest.PatientAdmission.IdentityStatus=="Verified"&&!u.BloodRequest.PatientAdmission.Patient.IsDelete&&!Db.BloodTransfer.Any(t=>t.BankBloodUnitGUID==u.GUID)&&!Db.HemoEquipment.Any(e=>e.OrgLocationGUID==u.OrgLocationGUID&&e.Code==u.EquipmentCode&&(e.Status!="Operational"||e.CalibrationDueAt<=now||e.MaintenanceDueAt<=now)));
         if(f.RequestGuid.HasValue)q=q.Where(u=>u.BloodRequestGUID==f.RequestGuid);
         if(!string.IsNullOrWhiteSpace(f.Search)){var s=f.Search.Trim();q=q.Where(u=>u.UnitCode.Contains(s)||u.BloodRequest!.RequestNumber.Contains(s)||u.BloodRequest.PatientAdmission.HISNumber.Contains(s));}
         var page=Math.Clamp(f.PageNumber,1,100000);var size=Math.Clamp(f.PageSize,1,100);var count=await q.CountAsync(ct);

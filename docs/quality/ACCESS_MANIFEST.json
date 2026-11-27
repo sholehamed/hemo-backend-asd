@@ -1,0 +1,389 @@
+{
+  "base": "/Identity/HemoQuality",
+  "menu": "/hemo/quality",
+  "endpoints": [
+    {
+      "key": "quality-equipment-list",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentList"
+    },
+    {
+      "key": "quality-equipment-detail",
+      "method": "get",
+      "path": "/Identity/HemoQuality/EquipmentDetail/{guid}"
+    },
+    {
+      "key": "quality-equipment-stats",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentStats"
+    },
+    {
+      "key": "quality-equipment-create",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentCreate"
+    },
+    {
+      "key": "quality-equipment-edit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentEdit"
+    },
+    {
+      "key": "quality-equipment-service",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentService"
+    },
+    {
+      "key": "quality-equipment-hold",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentHold"
+    },
+    {
+      "key": "quality-equipment-release",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentRelease"
+    },
+    {
+      "key": "quality-equipment-archive",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentArchive"
+    },
+    {
+      "key": "quality-equipment-temperature",
+      "method": "post",
+      "path": "/Identity/HemoQuality/EquipmentTemperature"
+    },
+    {
+      "key": "quality-incidents",
+      "method": "post",
+      "path": "/Identity/HemoQuality/Incidents"
+    },
+    {
+      "key": "quality-incident-report",
+      "method": "post",
+      "path": "/Identity/HemoQuality/IncidentReport"
+    },
+    {
+      "key": "quality-incident-resolve",
+      "method": "post",
+      "path": "/Identity/HemoQuality/IncidentResolve"
+    },
+    {
+      "key": "quality-facility",
+      "method": "get",
+      "path": "/Identity/HemoQuality/Facility"
+    },
+    {
+      "key": "quality-facility-save",
+      "method": "post",
+      "path": "/Identity/HemoQuality/FacilitySave"
+    },
+    {
+      "key": "quality-stats",
+      "method": "post",
+      "path": "/Identity/HemoQuality/Stats"
+    },
+    {
+      "key": "quality-qc-list",
+      "method": "post",
+      "path": "/Identity/HemoQuality/QcList"
+    },
+    {
+      "key": "quality-qc-detail",
+      "method": "get",
+      "path": "/Identity/HemoQuality/QcDetail/{guid}"
+    },
+    {
+      "key": "quality-qc-create",
+      "method": "post",
+      "path": "/Identity/HemoQuality/QcCreate"
+    },
+    {
+      "key": "quality-qc-edit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/QcEdit"
+    },
+    {
+      "key": "quality-qc-line",
+      "method": "post",
+      "path": "/Identity/HemoQuality/QcLine"
+    },
+    {
+      "key": "quality-qc-submit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/QcSubmit"
+    },
+    {
+      "key": "quality-qc-approve",
+      "method": "post",
+      "path": "/Identity/HemoQuality/QcApprove"
+    },
+    {
+      "key": "quality-committee-list",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeList"
+    },
+    {
+      "key": "quality-committee-detail",
+      "method": "get",
+      "path": "/Identity/HemoQuality/CommitteeDetail/{guid}"
+    },
+    {
+      "key": "quality-committee-create",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeCreate"
+    },
+    {
+      "key": "quality-committee-edit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeEdit"
+    },
+    {
+      "key": "quality-committee-line",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeLine"
+    },
+    {
+      "key": "quality-committee-submit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeSubmit"
+    },
+    {
+      "key": "quality-committee-approve",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeApprove"
+    },
+    {
+      "key": "quality-committee-progress",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeProgress"
+    },
+    {
+      "key": "quality-committee-verify",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeVerify"
+    },
+    {
+      "key": "quality-committee-close",
+      "method": "post",
+      "path": "/Identity/HemoQuality/CommitteeClose"
+    },
+    {
+      "key": "quality-committee-owners",
+      "method": "get",
+      "path": "/Identity/HemoQuality/CommitteeOwners"
+    },
+    {
+      "key": "quality-audit-list",
+      "method": "post",
+      "path": "/Identity/HemoQuality/AuditList"
+    },
+    {
+      "key": "quality-audit-detail",
+      "method": "get",
+      "path": "/Identity/HemoQuality/AuditDetail/{guid}"
+    },
+    {
+      "key": "quality-audit-create",
+      "method": "post",
+      "path": "/Identity/HemoQuality/AuditCreate"
+    },
+    {
+      "key": "quality-audit-edit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/AuditEdit"
+    },
+    {
+      "key": "quality-audit-line",
+      "method": "post",
+      "path": "/Identity/HemoQuality/AuditLine"
+    },
+    {
+      "key": "quality-audit-submit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/AuditSubmit"
+    },
+    {
+      "key": "quality-audit-approve",
+      "method": "post",
+      "path": "/Identity/HemoQuality/AuditApprove"
+    },
+    {
+      "key": "quality-training-list",
+      "method": "post",
+      "path": "/Identity/HemoQuality/TrainingList"
+    },
+    {
+      "key": "quality-training-detail",
+      "method": "get",
+      "path": "/Identity/HemoQuality/TrainingDetail/{guid}"
+    },
+    {
+      "key": "quality-training-create",
+      "method": "post",
+      "path": "/Identity/HemoQuality/TrainingCreate"
+    },
+    {
+      "key": "quality-training-edit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/TrainingEdit"
+    },
+    {
+      "key": "quality-training-line",
+      "method": "post",
+      "path": "/Identity/HemoQuality/TrainingLine"
+    },
+    {
+      "key": "quality-training-submit",
+      "method": "post",
+      "path": "/Identity/HemoQuality/TrainingSubmit"
+    },
+    {
+      "key": "quality-training-approve",
+      "method": "post",
+      "path": "/Identity/HemoQuality/TrainingApprove"
+    },
+    {
+      "key": "quality-training-owners",
+      "method": "get",
+      "path": "/Identity/HemoQuality/TrainingOwners"
+    }
+  ],
+  "roles": {
+    "EquipmentTech": [
+      "quality-equipment-list",
+      "quality-equipment-detail",
+      "quality-equipment-stats",
+      "quality-equipment-create",
+      "quality-equipment-edit",
+      "quality-equipment-service",
+      "quality-equipment-hold",
+      "quality-equipment-temperature",
+      "quality-incidents",
+      "quality-incident-report",
+      "quality-incident-resolve"
+    ],
+    "EquipmentReviewer": [
+      "quality-equipment-list",
+      "quality-equipment-detail",
+      "quality-equipment-stats",
+      "quality-equipment-release",
+      "quality-equipment-archive",
+      "quality-incidents"
+    ],
+    "QualityOfficer": [
+      "quality-qc-list",
+      "quality-qc-detail",
+      "quality-qc-create",
+      "quality-qc-edit",
+      "quality-qc-line",
+      "quality-qc-submit",
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-committee-create",
+      "quality-committee-edit",
+      "quality-committee-line",
+      "quality-committee-submit",
+      "quality-committee-owners",
+      "quality-audit-list",
+      "quality-audit-detail",
+      "quality-audit-create",
+      "quality-audit-edit",
+      "quality-audit-line",
+      "quality-audit-submit",
+      "quality-training-list",
+      "quality-training-detail",
+      "quality-training-create",
+      "quality-training-edit",
+      "quality-training-line",
+      "quality-training-submit",
+      "quality-training-owners",
+      "quality-facility",
+      "quality-facility-save",
+      "quality-stats"
+    ],
+    "QualityReviewer": [
+      "quality-qc-list",
+      "quality-qc-detail",
+      "quality-qc-approve",
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-committee-approve",
+      "quality-committee-verify",
+      "quality-committee-close",
+      "quality-audit-list",
+      "quality-audit-detail",
+      "quality-audit-approve",
+      "quality-training-list",
+      "quality-training-detail",
+      "quality-training-approve",
+      "quality-facility",
+      "quality-stats"
+    ],
+    "Nurse": [
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-committee-progress"
+    ],
+    "Doctor": [
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-committee-progress"
+    ],
+    "BloodBank": [
+      "quality-equipment-list",
+      "quality-equipment-detail",
+      "quality-equipment-temperature",
+      "quality-incidents",
+      "quality-incident-report",
+      "quality-qc-list",
+      "quality-qc-detail",
+      "quality-qc-create",
+      "quality-qc-edit",
+      "quality-qc-line",
+      "quality-qc-submit",
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-committee-progress"
+    ],
+    "BankSupervisor": [
+      "quality-equipment-list",
+      "quality-equipment-detail",
+      "quality-equipment-stats",
+      "quality-incidents",
+      "quality-incident-report",
+      "quality-qc-list",
+      "quality-qc-detail",
+      "quality-qc-approve",
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-committee-progress",
+      "quality-stats"
+    ],
+    "HvOfficer": [
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-audit-list",
+      "quality-audit-detail",
+      "quality-training-list",
+      "quality-training-detail",
+      "quality-facility",
+      "quality-stats"
+    ],
+    "HvReviewer": [
+      "quality-committee-list",
+      "quality-committee-detail",
+      "quality-audit-list",
+      "quality-audit-detail",
+      "quality-training-list",
+      "quality-training-detail",
+      "quality-stats"
+    ]
+  },
+  "aliases": {
+    "QcReject": "QcApprove",
+    "CommitteeReject": "CommitteeApprove",
+    "AuditReject": "AuditApprove",
+    "TrainingReject": "TrainingApprove",
+    "CommitteeReturn": "CommitteeVerify"
+  }
+}

@@ -34,6 +34,7 @@ public class BankCommandHandler(BankBloodUnitService units,UserRoleService roles
     private static void Live(BankBloodUnit u){if(BankRules.IsExpired(u.ExpiresAt,DateTime.UtcNow))throw Error("تاریخ انقضای ثبت‌شده واحد گذشته است.");}
     private async Task TemperatureOk(BankBloodUnit u,CancellationToken ct)
     {
+        await Application.Core.Quality_core.EquipmentInterlock.Require(Db,u.OrgLocationGUID,u.EquipmentCode,ct);
         var last=await Db.BankTemperatureLog.AsNoTracking().Where(t=>t.OrgLocationGUID==u.OrgLocationGUID&&t.EquipmentCode==u.EquipmentCode)
             .OrderByDescending(t=>t.MeasuredAt).ThenByDescending(t=>t.RecordedAt).ThenByDescending(t=>t.GUID).FirstOrDefaultAsync(ct);
         if(last?.Assessment!="Acceptable")throw Error("ثبت و بررسی وضعیت دمای تجهیز لازم است.");
@@ -55,6 +56,7 @@ public class BankCommandHandler(BankBloodUnitService units,UserRoleService roles
         var code=BankValidation.Normalize(v.UnitCode);
         await using var tx=await Transaction(ct);
         if(await units.Table.IgnoreQueryFilters().AnyAsync(x=>x.OrgLocationGUID==user.OrgLocationGUID&&x.UnitCode==code,ct))throw Error("کد واحد قبلاً ثبت شده است.");
+        await Application.Core.Quality_core.EquipmentInterlock.Require(Db,user.OrgLocationGUID,BankValidation.Normalize(v.EquipmentCode),ct);
         var u=new BankBloodUnit{OrgLocationGUID=user.OrgLocationGUID,UnitCode=code,ProductCode=v.ProductCode,BloodGroup=v.BloodGroup,BatchNumber=v.BatchNumber,SupplySource=v.SupplySource.Trim(),EquipmentCode=BankValidation.Normalize(v.EquipmentCode),ReceivedAt=v.ReceivedAt.UtcDateTime,ExpiresAt=v.ExpiresAt.UtcDateTime,Status=BankRules.ReceivedHold};
         units.Table.Add(u);Event(u,user,"Receive","",null,v.Notes);await Save(ct);await tx.CommitAsync(ct);return u.GUID;
     }
@@ -149,6 +151,8 @@ public class BankCommandHandler(BankBloodUnitService units,UserRoleService roles
         // clinical temperature assessment. Releasing the hold needs a new inspection.
         if(v.Assessment!="Acceptable")
         {
+            var registered=await Db.HemoEquipment.SingleOrDefaultAsync(x=>x.OrgLocationGUID==user.OrgLocationGUID&&x.Code==code,ct);
+            if(registered!=null&&registered.Status!="Archived"){var prior=registered.Status;registered.Status="Hold";registered.LastModified=now;Db.HemoEquipmentEvent.Add(new HemoEquipmentEvent{HemoEquipmentGUID=registered.GUID,ActorUserGUID=user.UserGuid,ActorRoleGUID=user.RoleGuid,Kind="TemperatureHold",PreviousStatus=prior,NewStatus="Hold",OccurredAt=now,Notes=v.Notes??"مغایرت ثبت‌شده",EvidenceJson=JsonSerializer.Serialize(new{TemperatureLogGuid=log.GUID,Input=v})});}
             var affected=await units.Table.Where(u=>u.OrgLocationGUID==user.OrgLocationGUID&&u.EquipmentCode==code&&(u.Status==BankRules.ReceivedHold||u.Status==BankRules.Available||u.Status==BankRules.Reserved||u.Status==BankRules.Thawing||u.Status==BankRules.Ready)).ToListAsync(ct);
             foreach(var u in affected){var before=u.Status;u.Status=BankRules.Quarantined;u.InspectionAt=null;u.LastModified=now;Event(u,user,"TemperatureHold",before,u.BloodRequestGUID,v.Notes,null,v.Temperature);}
         }

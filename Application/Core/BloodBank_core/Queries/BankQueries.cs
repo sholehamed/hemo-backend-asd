@@ -16,7 +16,7 @@ public class BankQueryHandler(BankBloodUnitService units,UserRoleService roles,A
 {
     private IApplicationDbContext Db=>units.db;
     private IQueryable<BankBloodUnit> Scope(UserRoleInfo u)=>units.Table.AsNoTracking().Where(x=>x.OrgLocationGUID==u.OrgLocationGUID);
-    private static Expression<Func<BankBloodUnit,UnitRow>> Row(DateTime now)=>x=>new UnitRow(x.GUID,x.UnitCode,x.ProductCode,x.BloodGroup,x.BatchNumber,x.SupplySource,x.EquipmentCode,x.ReceivedAt,x.ExpiresAt,x.Status,x.ExpiresAt<=now,x.BloodRequestGUID,x.ThawStartedAt,x.ThawCompletedAt,x.Version);
+    private Expression<Func<BankBloodUnit,UnitRow>> Row(DateTime now)=>x=>new UnitRow(x.GUID,x.UnitCode,x.ProductCode,x.BloodGroup,x.BatchNumber,x.SupplySource,x.EquipmentCode,x.ReceivedAt,x.ExpiresAt,x.Status,x.ExpiresAt<=now,x.BloodRequestGUID,x.ThawStartedAt,x.ThawCompletedAt,x.Version,(x.Status==BankRules.Available||x.Status==BankRules.Reserved||x.Status==BankRules.Thawing||x.Status==BankRules.Ready||x.Status==BankRules.ReceivedHold||x.Status==BankRules.Quarantined)&&Db.HemoEquipment.Any(e=>e.OrgLocationGUID==x.OrgLocationGUID&&e.Code==x.EquipmentCode&&(e.Status!="Operational"||e.CalibrationDueAt<=now||e.MaintenanceDueAt<=now)));
     private static Expression<Func<BankTemperatureLog,TemperatureView>> Temp()=>t=>new TemperatureView(t.GUID,t.EquipmentCode,t.MeasuredAt,t.RecordedAt,t.Temperature,t.Assessment,t.Notes,t.ActorUserGUID);
     public async Task<PaginatedList<UnitRow>> Handle(BankInventoryQuery f,CancellationToken ct)
     {
@@ -77,10 +77,12 @@ public class BankQueryHandler(BankBloodUnitService units,UserRoleService roles,A
         var data=await q.GroupBy(x=>new{x.Status,Expired=x.ExpiresAt<=now,Soon=x.ExpiresAt>now&&x.ExpiresAt<=horizon})
             .Select(g=>new{g.Key.Status,g.Key.Expired,g.Key.Soon,Count=g.Count()}).ToListAsync(ct);
         int Count(string s)=>data.Where(x=>x.Status==s&&!x.Expired).Sum(x=>x.Count);
-        var stock=await q.Where(x=>x.Status==BankRules.Available&&x.ExpiresAt>now).GroupBy(x=>new{x.ProductCode,x.BloodGroup})
+        var blocked=q.Where(x=>(x.Status==BankRules.Available||x.Status==BankRules.Reserved||x.Status==BankRules.Thawing||x.Status==BankRules.Ready||x.Status==BankRules.ReceivedHold||x.Status==BankRules.Quarantined)&&Db.HemoEquipment.Any(e=>e.OrgLocationGUID==x.OrgLocationGUID&&e.Code==x.EquipmentCode&&(e.Status!="Operational"||e.CalibrationDueAt<=now||e.MaintenanceDueAt<=now)));
+        var blockedAvailable=await blocked.CountAsync(x=>x.Status==BankRules.Available&&x.ExpiresAt>now,ct);
+        var stock=await q.Where(x=>x.Status==BankRules.Available&&x.ExpiresAt>now&&!blocked.Any(b=>b.GUID==x.GUID)).GroupBy(x=>new{x.ProductCode,x.BloodGroup})
             .Select(g=>new BankStockCell(g.Key.ProductCode,g.Key.BloodGroup,g.Count())).ToListAsync(ct);
         var approvals=await Db.BloodRequest.CountAsync(r=>r.PatientAdmission.OrgLocationGUID==u.OrgLocationGUID&&r.Status=="AwaitingBank",ct);
         var concern=await Db.BankTemperatureLog.Where(t=>t.OrgLocationGUID==u.OrgLocationGUID&&t.Assessment!="Acceptable"&&t.MeasuredAt>=now.AddDays(-1)).CountAsync(ct);
-        return new(data.Sum(x=>x.Count),Count(BankRules.Available),Count(BankRules.Reserved),Count(BankRules.Thawing),Count(BankRules.Ready),Count(BankRules.ReceivedHold)+Count(BankRules.Quarantined),data.Where(x=>(x.Status==BankRules.ReceivedHold||x.Status==BankRules.Available||x.Status==BankRules.Reserved||x.Status==BankRules.Thawing||x.Status==BankRules.Ready||x.Status==BankRules.Quarantined)&&x.Expired).Sum(x=>x.Count),data.Where(x=>(x.Status==BankRules.ReceivedHold||x.Status==BankRules.Available||x.Status==BankRules.Reserved||x.Status==BankRules.Thawing||x.Status==BankRules.Ready||x.Status==BankRules.Quarantined)&&x.Soon).Sum(x=>x.Count),data.Where(x=>x.Status==BankRules.Discarded).Sum(x=>x.Count),approvals,concern,stock);
+        return new(data.Sum(x=>x.Count),Count(BankRules.Available)-blockedAvailable,Count(BankRules.Reserved),Count(BankRules.Thawing),Count(BankRules.Ready),Count(BankRules.ReceivedHold)+Count(BankRules.Quarantined),data.Where(x=>(x.Status==BankRules.ReceivedHold||x.Status==BankRules.Available||x.Status==BankRules.Reserved||x.Status==BankRules.Thawing||x.Status==BankRules.Ready||x.Status==BankRules.Quarantined)&&x.Expired).Sum(x=>x.Count),data.Where(x=>(x.Status==BankRules.ReceivedHold||x.Status==BankRules.Available||x.Status==BankRules.Reserved||x.Status==BankRules.Thawing||x.Status==BankRules.Ready||x.Status==BankRules.Quarantined)&&x.Soon).Sum(x=>x.Count),data.Where(x=>x.Status==BankRules.Discarded).Sum(x=>x.Count),approvals,concern,stock,await blocked.CountAsync(ct));
     }
 }

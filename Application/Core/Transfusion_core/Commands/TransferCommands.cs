@@ -62,6 +62,7 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
             if(u.Status!=BankRules.Ready||!u.BloodRequestGUID.HasValue||BankRules.IsExpired(u.ExpiresAt,now)||
                 BankRules.NeedsThaw(u.ProductCode)&&!u.ThawCompletedAt.HasValue||await transfers.Table.IgnoreQueryFilters().AnyAsync(t=>t.BankBloodUnitGUID==u.GUID,ct))
                 throw Error("واحد آماده صدور نیست یا قبلاً حواله دارد.");
+            await Application.Core.Quality_core.EquipmentInterlock.Require(Db,actor.OrgLocationGUID,u.EquipmentCode,ct);
             var r=await Request(u.BloodRequestGUID.Value,actor,ct);var a=r.PatientAdmission;
             if(!BankRules.CurrentApproval(r)||!r.Items.Any(i=>!i.IsDelete&&i.ProductCode==u.ProductCode))throw Error("تأیید پزشک یا پذیرش نیازمند بازبینی است.");
             var lab=await Db.BankCompatibilityTest.Where(x=>x.BankBloodUnitGUID==u.GUID&&x.BloodRequestGUID==r.GUID)

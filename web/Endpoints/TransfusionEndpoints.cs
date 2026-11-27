@@ -10,7 +10,7 @@ public class Transfusion : EndpointGroupBase
 {
     public override void Map(WebApplication app)
     {
-        app.MapGroup(this).RequireAuthorization()
+        var group=app.MapGroup(this).RequireAuthorization()
             .AddEndpointFilter(async (context,next) =>
             {
                 var http=context.HttpContext;
@@ -21,10 +21,25 @@ public class Transfusion : EndpointGroupBase
                    !Guid.TryParse(key,out _) || !service.CheckToken(key!))
                     return Results.Unauthorized();
                 return await next(context);
-            })
-            .MapGet(Capabilities,"Capabilities").MapPost(List,"List").MapGet(Detail,"Detail/{guid:guid}").MapPost(Stats,"Stats")
-            .MapPost(Candidates,"Candidates").MapPost(Dispatch,"Dispatch").MapPost(Vital,"Vital")
-            .MapPost(Receive,"Receive").MapPost(ReceiptHold,"ReceiptHold").MapPost(Verify,"Verify").MapPost(Witness,"Witness").MapPost(Start,"Start").MapPost(Complete,"Complete").MapPost(Stop,"Stop").MapPost(Return,"Return").MapPost(AcceptReturn,"AcceptReturn").MapPost(Dispose,"Dispose").MapPost(DoctorNote,"DoctorNote");
+            });
+        group.MapGet("Capabilities", Capabilities).WithName("HEMO.Transfusion.Capabilities");
+        group.MapPost("List", List).WithName("HEMO.Transfusion.List");
+        group.MapGet("Detail/{guid:guid}", Detail).WithName("HEMO.Transfusion.Detail");
+        group.MapPost("Stats", Stats).WithName("HEMO.Transfusion.Stats");
+        group.MapPost("Candidates", Candidates).WithName("HEMO.Transfusion.Candidates");
+        group.MapPost("Dispatch", Dispatch).WithName("HEMO.Transfusion.Dispatch");
+        group.MapPost("Vital", Vital).WithName("HEMO.Transfusion.Vital");
+        group.MapPost("Receive", Receive).WithName("HEMO.Transfusion.Receive");
+        group.MapPost("ReceiptHold", ReceiptHold).WithName("HEMO.Transfusion.ReceiptHold");
+        group.MapPost("Verify", Verify).WithName("HEMO.Transfusion.Verify");
+        group.MapPost("Witness", Witness).WithName("HEMO.Transfusion.Witness");
+        group.MapPost("Start", Start).WithName("HEMO.Transfusion.Start");
+        group.MapPost("Complete", Complete).WithName("HEMO.Transfusion.Complete");
+        group.MapPost("Stop", Stop).WithName("HEMO.Transfusion.Stop");
+        group.MapPost("Return", Return).WithName("HEMO.Transfusion.Return");
+        group.MapPost("AcceptReturn", AcceptReturn).WithName("HEMO.Transfusion.AcceptReturn");
+        group.MapPost("Dispose", Dispose).WithName("HEMO.Transfusion.Dispose");
+        group.MapPost("DoctorNote", DoctorNote).WithName("HEMO.Transfusion.DoctorNote");
     }
     public async Task<Ok<TransferCapabilities>> Capabilities(ISender sender,CancellationToken ct)=>TypedResults.Ok(await sender.Send(new TransferCapabilitiesQuery(),ct));
     public async Task<Ok<PaginatedList<TransferRow>>> List(ISender sender,TransferListQuery query,CancellationToken ct)=>TypedResults.Ok(await sender.Send(query,ct));

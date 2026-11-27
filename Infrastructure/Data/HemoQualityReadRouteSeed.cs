@@ -21,6 +21,13 @@ public static class HemoQualityReadRouteSeed
         new("/hemo/quality/equipment/:guid","جزئیات و عملیات فنی تجهیز","pi pi-file","quality-equipment-detail",
             ["quality-equipment-detail","quality-equipment-edit","quality-equipment-service","quality-equipment-hold","quality-equipment-release","quality-equipment-archive","quality-equipment-temperature","quality-incident-report","quality-incident-resolve"],null,false)
     ];
+    public static readonly Route[] RecordOperationRoutes=[
+        new("/hemo/quality/qc/:guid","جزئیات کنترل کیفیت آزمایشگاه","pi pi-file","quality-qc-detail",["quality-qc-detail","quality-qc-edit","quality-qc-line","quality-qc-submit","quality-qc-approve"],null,false),
+        new("/hemo/quality/committee/:guid","جزئیات کمیته انتقال خون","pi pi-file","quality-committee-detail",["quality-committee-detail","quality-committee-edit","quality-committee-line","quality-committee-submit","quality-committee-approve","quality-committee-owners","quality-committee-progress","quality-committee-verify","quality-committee-close"],null,false),
+        new("/hemo/quality/audit/:guid","جزئیات ممیزی","pi pi-file","quality-audit-detail",["quality-audit-detail","quality-audit-edit","quality-audit-line","quality-audit-submit","quality-audit-approve"],null,false),
+        new("/hemo/quality/training/:guid","جزئیات آموزش","pi pi-file","quality-training-detail",["quality-training-detail","quality-training-edit","quality-training-line","quality-training-submit","quality-training-approve","quality-training-owners"],null,false),
+        new("/hemo/quality/facility","مشخصات و مراجع مرکز","pi pi-building","quality-facility",["quality-facility","quality-facility-save"])
+    ];
     public static bool CanOpen(Route route,IEnumerable<string> keys)
     {
         var allowed=keys.ToHashSet(StringComparer.Ordinal);
@@ -28,7 +35,7 @@ public static class HemoQualityReadRouteSeed
     }
 
     internal static async Task ApplyAsync(ApplicationDbContext db,Menu original,IReadOnlyDictionary<string,Guid> apis,
-        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeEquipmentOperations=false)
+        IEnumerable<HemoDemoSeed.Account> accounts,CancellationToken ct,bool includeEquipmentOperations=false,bool includeRecordOperations=false)
     {
         const string rootMarker="HEMO-R02-COMPANY-MENU";
         var root=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/Hemo",ct);
@@ -58,7 +65,12 @@ public static class HemoQualityReadRouteSeed
                 .Select(r=>r.ApiGUID!.Value).ToListAsync(ct)).ToHashSet();
             roles.Add((role.GUID,account.Permissions.Where(k=>apis.TryGetValue(k,out var id)&&grants.Contains(id)).ToHashSet(StringComparer.Ordinal)));
         }
-        foreach(var route in Routes.Select(r=>includeEquipmentOperations&&r.Path=="/hemo/quality/equipment"?r with{Mapped=[..r.Mapped,"quality-equipment-create"]}:r).Concat(includeEquipmentOperations?EquipmentOperationRoutes:Array.Empty<Route>()))
+        foreach(var route in Routes.Select(r=>
+            includeEquipmentOperations&&r.Path=="/hemo/quality/equipment"?r with{Mapped=[..r.Mapped,"quality-equipment-create"]}:
+            includeRecordOperations&&new[]{"/hemo/quality/qc","/hemo/quality/committee","/hemo/quality/audit","/hemo/quality/training"}.Contains(r.Path)?
+                r with{Mapped=[..r.Mapped,r.Required.Replace("-list","-create")]}:r)
+            .Concat(includeEquipmentOperations?EquipmentOperationRoutes:Array.Empty<Route>())
+            .Concat(includeRecordOperations?RecordOperationRoutes:Array.Empty<Route>()))
         {
             var marker="HEMO-R02-QUALITY:"+route.Path;
             var leaf=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink==route.Path,ct);

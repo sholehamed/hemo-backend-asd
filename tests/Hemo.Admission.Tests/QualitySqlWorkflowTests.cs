@@ -202,14 +202,18 @@ public class QualitySqlWorkflowTests
             await db.Database.MigrateAsync(ct);
             var secrets=HemoDemoSeed.DemoAccounts(true,true,true,true,true).Append(HemoDemoSeed.DashboardManager).ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
             secrets["HemoSeed:IncludeDashboardSamples"]="true";
+            secrets["HemoSeed:IncludeR02Pages"]="true";
             await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(secrets).Build(),ct);
             var manager=await db.UserRole.AsNoTracking().Include(x=>x.User).SingleAsync(x=>x.User.Username=="hemo.dashboard.manager",ct);
             Assert.Equal(15,await db.UserRole.CountAsync(ct));
-            Assert.Equal(7,await db.RoleAccess.CountAsync(x=>x.RoleGUID==manager.RoleGUID,ct));
+            Assert.Equal(7,await db.RoleAccess.Where(x=>x.RoleGUID==manager.RoleGUID).Select(x=>x.ApiGUID).Distinct().CountAsync(ct));
             var sample=await db.PatientAdmission.AsNoTracking().Where(x=>x.OrgLocationGUID==manager.OrgLocationGUID&&x.HISNumber.StartsWith("DEMO-ST09-")).ToDictionaryAsync(x=>x.GUID,x=>x.AdmittedAt,ct);
             Assert.Equal(10,sample.Count);
-            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"HemoSeed:IncludeDashboardSamples","true"}}).Build(),ct);
-            Assert.Equal(15,await db.UserRole.CountAsync(ct));Assert.Equal(7,await db.RoleAccess.CountAsync(x=>x.RoleGUID==manager.RoleGUID,ct));
+            var menus=await db.Menu.CountAsync(ct);var mappings=await db.MenuApi.CountAsync(ct);var grants=await db.RoleAccess.CountAsync(ct);
+            Assert.True(await db.Menu.AnyAsync(m=>m.routerLink=="/hemo/dashboard",ct));
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"HemoSeed:IncludeDashboardSamples","true"},{"HemoSeed:IncludeR02Pages","true"}}).Build(),ct);
+            Assert.Equal(15,await db.UserRole.CountAsync(ct));Assert.Equal(7,await db.RoleAccess.Where(x=>x.RoleGUID==manager.RoleGUID).Select(x=>x.ApiGUID).Distinct().CountAsync(ct));
+            Assert.Equal(menus,await db.Menu.CountAsync(ct));Assert.Equal(mappings,await db.MenuApi.CountAsync(ct));Assert.Equal(grants,await db.RoleAccess.CountAsync(ct));
             var after=await db.PatientAdmission.AsNoTracking().Where(x=>x.OrgLocationGUID==manager.OrgLocationGUID&&x.HISNumber.StartsWith("DEMO-ST09-")).ToListAsync(ct);
             Assert.Equal(10,after.Count);foreach(var row in after){Assert.Equal(sample[row.GUID],row.AdmittedAt);Assert.Equal("Pending",row.IdentityStatus);}
             db.ChangeTracker.Clear();
@@ -225,6 +229,8 @@ public class QualitySqlWorkflowTests
             await Assert.ThrowsAsync<ForbiddenAccessException>(()=>aq.Handle(new PatientAdmissionWithPaginationQuery(),ct));
             var rq=new BloodRequestQueryHandler(new BloodRequestService(db,null!),roles,auth);
             Assert.True((await rq.Handle(new BloodRequestStatsQuery(),ct)).Total>0);
+            await Assert.ThrowsAsync<ForbiddenAccessException>(()=>rq.Handle(new BloodRequestListQuery(),ct));
+            await Assert.ThrowsAsync<ForbiddenAccessException>(()=>rq.Handle(new BloodRequestBankQueueQuery(),ct));
             var bq=new BankQueryHandler(new BankBloodUnitService(db,null!),roles,auth);
             Assert.True((await bq.Handle(new BankStatsQuery(),ct)).Total>0);
             var tq=new TransferQueryHandler(new BloodTransferService(db,null!),roles,auth);

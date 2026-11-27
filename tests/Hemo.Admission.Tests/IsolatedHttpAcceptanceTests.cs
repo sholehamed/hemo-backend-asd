@@ -455,7 +455,7 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             await Expect(await client.PostAsJsonAsync(equipmentApi+"/FacilitySave",facilityUpdate),HttpStatusCode.BadRequest);
 
             Actor("hemo.equipment.tech");e=await Equipment();
-            var incident=(await Json(await client.PostAsJsonAsync(equipmentApi+"/IncidentReport",new IncidentInput(equipment,e.Equipment.Version,"High","Synthetic incident")))).GetGuid();
+            var incident=(await Json(await client.PostAsJsonAsync(equipmentApi+"/IncidentReport",new IncidentInput(equipment,e.Equipment.Version,"Urgent","Synthetic incident")))).GetGuid();
             e=await Equipment();Assert.Equal("Hold",e.Equipment.Status);
             var incidentRow=e.Incidents.Single(x=>x.Guid==incident);
             Actor("hemo.equipment.reviewer");

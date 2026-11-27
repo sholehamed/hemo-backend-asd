@@ -334,6 +334,8 @@ public static class HemoDemoSeed
                 await db.SaveChangesAsync(ct);
             }
         }
+        if(config.GetValue<bool>("HemoSeed:IncludeAdmissionRouteMenus"))
+            await HemoAdmissionRouteSeed.ApplyAsync(db,menu.GUID,apis,accounts,ct);
         if(includeSamples)await HemoTransfusionSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeHvSamples)await HemoHvSampleSeed.ApplyAsync(db,org.GUID,ct);
         if(includeQualitySamples)await HemoQualitySampleSeed.ApplyAsync(db,org.GUID,ct);

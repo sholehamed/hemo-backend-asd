@@ -149,7 +149,7 @@ public class BankCommandHandler(BankBloodUnitService units,UserRoleService roles
         // clinical temperature assessment. Releasing the hold needs a new inspection.
         if(v.Assessment!="Acceptable")
         {
-            var affected=await units.Table.Where(u=>u.OrgLocationGUID==user.OrgLocationGUID&&u.EquipmentCode==code&&u.Status!=BankRules.Discarded&&u.Status!=BankRules.Quarantined).ToListAsync(ct);
+            var affected=await units.Table.Where(u=>u.OrgLocationGUID==user.OrgLocationGUID&&u.EquipmentCode==code&&(u.Status==BankRules.ReceivedHold||u.Status==BankRules.Available||u.Status==BankRules.Reserved||u.Status==BankRules.Thawing||u.Status==BankRules.Ready)).ToListAsync(ct);
             foreach(var u in affected){var before=u.Status;u.Status=BankRules.Quarantined;u.InspectionAt=null;u.LastModified=now;Event(u,user,"TemperatureHold",before,u.BloodRequestGUID,v.Notes,null,v.Temperature);}
         }
         await Save(ct);await tx.CommitAsync(ct);return log.GUID;

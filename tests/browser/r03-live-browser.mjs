@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 
-const base = 'http://127.0.0.1:1002';
+const base = 'http://127.0.0.1:18002';
 const chunks=[];
 for await (const chunk of process.stdin) chunks.push(chunk);
 const sessions=JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -16,7 +16,7 @@ async function open(name) {
   // Block all external network access. Never intercept or synthesize local API responses.
   await context.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());
   await context.addInitScript(({token,role})=>{
-    if(location.origin!=='http://127.0.0.1:1002')return;
+    if(location.origin!=='http://127.0.0.1:18002')return;
     sessionStorage.setItem('Token',token);
     sessionStorage.setItem('UserRole',String(role));
     sessionStorage.setItem('userRole',String(role));

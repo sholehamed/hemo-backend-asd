@@ -247,7 +247,7 @@ public class IsolatedHttpAcceptanceTests(ITestOutputHelper output)
             await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentRelease",new EquipmentActionInput(equipment,e.Equipment.Version,"Synthetic independent review","FIX")),HttpStatusCode.NoContent);
             Assert.Equal("Operational",(await Equipment()).Equipment.Status);
             Actor("hemo.equipment.tech");e=await Equipment();
-            await Expect(await client.PostAsJsonAsync(equipmentApi+"/EquipmentTemperature",new EquipmentTemperatureInput(equipment,e.Equipment.Version,DateTimeOffset.UtcNow,"Morning",0m,-1m,1m,true,true,true,"Acceptable","Synthetic observation")),HttpStatusCode.NoContent);
+            Assert.NotEqual(Guid.Empty,(await Json(await client.PostAsJsonAsync(equipmentApi+"/EquipmentTemperature",new EquipmentTemperatureInput(equipment,e.Equipment.Version,DateTimeOffset.UtcNow,"Morning",0m,-1m,1m,true,true,true,"Acceptable","Synthetic observation")))).GetGuid());
 
             Actor("hemo.bloodbank");
             var unit=(await Json(await client.PostAsJsonAsync(bankApi+"/Receive",receive),HttpStatusCode.Created)).GetGuid();

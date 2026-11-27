@@ -15,6 +15,7 @@ public class BloodTransferVitalConfiguration : IEntityTypeConfiguration<BloodTra
         builder.Property(x=>x.Temperature).HasPrecision(9,2);
         builder.Property(x=>x.UrineMl).HasPrecision(9,2);
         builder.Property(x=>x.Notes).IsUnicode().HasMaxLength(2000);
+        builder.Property(x=>x.RateMlPerHour).HasPrecision(9,2);
         builder.HasIndex(x=>new { x.BloodTransferGUID, x.MeasuredAt });
         builder.HasIndex(x=>new { x.BloodTransferGUID, x.Phase });
         builder.HasOne(x=>x.Transfer).WithMany().HasForeignKey(x=>x.BloodTransferGUID).OnDelete(DeleteBehavior.Restrict);

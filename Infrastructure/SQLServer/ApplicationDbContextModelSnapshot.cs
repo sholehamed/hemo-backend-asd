@@ -3057,6 +3057,7 @@ namespace Infrastructure.SQLServer
                 b.Property<Guid?>("StartedBy").HasColumnType("uniqueidentifier");
                 b.Property<DateTime?>("EndedAt").HasColumnType("datetime2");
                 b.Property<Guid?>("EndedBy").HasColumnType("uniqueidentifier");
+                b.Property<decimal?>("VolumeMl").HasPrecision(9, 2).HasColumnType("decimal(9,2)");
                 b.Property<bool>("SuspectedReaction").HasColumnType("bit");
                 b.Property<DateTime?>("ReturnedAt").HasColumnType("datetime2");
                 b.Property<DateTime?>("ReturnAcceptedAt").HasColumnType("datetime2");
@@ -3123,6 +3124,7 @@ namespace Infrastructure.SQLServer
                 b.Property<decimal>("Temperature").HasPrecision(9, 2).HasColumnType("decimal(9,2)");
                 b.Property<int>("Spo2").HasColumnType("int");
                 b.Property<int>("Respiration").HasColumnType("int");
+                b.Property<decimal?>("RateMlPerHour").HasPrecision(9, 2).HasColumnType("decimal(9,2)");
                 b.Property<decimal?>("UrineMl").HasPrecision(9, 2).HasColumnType("decimal(9,2)");
                 b.Property<string>("Notes").HasMaxLength(2000).IsUnicode(true).HasColumnType("nvarchar(2000)");
                 b.HasKey("GUID");

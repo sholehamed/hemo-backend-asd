@@ -5,7 +5,7 @@ public static class TransferRules
 {
     public const string Dispatched="Dispatched",Received="Received",ReceiptHold="ReceiptHold",Verified="Verified",Witnessed="Witnessed",InProgress="InProgress",Completed="Completed",Stopped="Stopped",Returning="Returning",Returned="Returned",Disposed="Disposed";
     public const int RequiredChecks=31;
-    public static readonly string[] Phases=["T0","T15","Mid","End","Post1h"];
+    public static readonly string[] Phases=["T0","Start","T15","T30","T45","T60","Mid","End","Post1h","Post2h"];
     public static string? Next(string status,string action)=>(status,action) switch
     {
         (Dispatched,"Receive")=>Received,
@@ -23,8 +23,8 @@ public static class TransferRules
     public static bool VitalAllowed(string status,string phase)=>phase switch
     {
         "T0"=>status is Verified or Witnessed,
-        "T15" or "Mid" or "End"=>status==InProgress,
-        "Post1h"=>status is Completed or Stopped or Returning or Returned or Disposed,
+        "Start" or "T15" or "T30" or "T45" or "T60" or "Mid" or "End"=>status==InProgress,
+        "Post1h" or "Post2h"=>status is Completed or Stopped or Returning or Returned or Disposed,
         _=>false
     };
     public static bool DistinctWitness(Guid? verifier,Guid witness)=>verifier.HasValue&&verifier.Value!=Guid.Empty&&witness!=Guid.Empty&&verifier.Value!=witness;

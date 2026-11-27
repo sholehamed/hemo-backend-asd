@@ -37,6 +37,7 @@ public class BloodTransfer : AuditedEntity
     public Guid? StartedBy { get; set; }
     public DateTime? EndedAt { get; set; }
     public Guid? EndedBy { get; set; }
+    public decimal? VolumeMl { get; set; }
     public bool SuspectedReaction { get; set; }
     public DateTime? ReturnedAt { get; set; }
     public DateTime? ReturnAcceptedAt { get; set; }

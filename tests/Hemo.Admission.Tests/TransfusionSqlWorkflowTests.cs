@@ -103,7 +103,7 @@ public class TransfusionSqlWorkflowTests
                 await tx.Handle(new TransferActionCommand(edit==null?v:edit(v),action),ct);
             }
             async Task Vital(Guid i,string phase){
-                var d=await Get(i);await tx.Handle(new RecordTransferVitalCommand(new(i,d.Transfer.Version,phase,DateTimeOffset.UtcNow,120,80,75,37m,98,16,null,"Synthetic fixture observation")),ct);
+                var d=await Get(i);await tx.Handle(new RecordTransferVitalCommand(new(i,d.Transfer.Version,phase,DateTimeOffset.UtcNow,120,80,75,37m,98,16,null,"Synthetic fixture observation",10m)),ct);
             }
             Assert.True((await Get(id)).Demo);
             await Assert.ThrowsAsync<ServiceExeption>(()=>Act(id,"Start"));
@@ -120,9 +120,9 @@ public class TransfusionSqlWorkflowTests
             await Act(id,"Start");
             await Assert.ThrowsAsync<ServiceExeption>(()=>Act(id,"Complete"));
             await Vital(id,"T15");await Vital(id,"Mid");await Vital(id,"End");
-            await Act(id,"Complete");await Vital(id,"Post1h");
-            var done=await Get(id);Assert.Equal("Completed",done.Transfer.Status);Assert.Equal(5,done.Vitals.Count);
-            Assert.NotEqual(done.VerifiedBy,done.WitnessedBy);
+            await Act(id,"Complete",x=>x with{VolumeMl=100m});await Vital(id,"Post1h");
+            var done=await Get(id);Assert.Equal("Completed",done.Transfer.Status);Assert.Equal(5,done.Vitals.Count);Assert.Equal(100m,done.Transfer.VolumeMl);
+            Assert.NotEqual(done.VerifiedBy,done.WitnessedBy);Assert.All(done.Vitals,v=>Assert.Equal(10m,v.RateMlPerHour));
             Assert.Equal("Transfused",await db.BankBloodUnit.Where(x=>x.GUID==one.UnitGuid).Select(x=>x.Status).SingleAsync(ct));
             await Assert.ThrowsAsync<ServiceExeption>(()=>Act(id,"Return"));
             await Act(returnId,"ReceiptHold",x=>x with{UnitCode="OBSERVED-MISMATCH",Condition="Mismatch"});

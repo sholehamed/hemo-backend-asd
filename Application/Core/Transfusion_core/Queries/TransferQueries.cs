@@ -15,7 +15,7 @@ public class TransferQueryHandler(BloodTransferService transfers,UserRoleService
 {
     private IApplicationDbContext Db=>transfers.db;
     private IQueryable<BloodTransfer> Scope(UserRoleInfo u)=>transfers.Table.AsNoTracking().Where(t=>t.OrgLocationGUID==u.OrgLocationGUID&&t.Admission.OrgLocationGUID==u.OrgLocationGUID&&t.Unit.OrgLocationGUID==u.OrgLocationGUID);
-    private static Expression<Func<BloodTransfer,TransferRow>> Row()=>t=>new(t.GUID,t.TransferNumber,t.BankBloodUnitGUID,t.BloodRequestGUID,t.PatientAdmissionGUID,t.PatientName,t.HisNumber,t.Ward,t.UnitCode,t.ProductCode,t.BloodGroup,t.Status,t.DispatchedAt,t.ReceivedAt,t.StartedAt,t.EndedAt,t.SuspectedReaction,t.Version);
+    private static Expression<Func<BloodTransfer,TransferRow>> Row()=>t=>new(t.GUID,t.TransferNumber,t.BankBloodUnitGUID,t.BloodRequestGUID,t.PatientAdmissionGUID,t.PatientName,t.HisNumber,t.Ward,t.UnitCode,t.ProductCode,t.BloodGroup,t.Status,t.DispatchedAt,t.ReceivedAt,t.StartedAt,t.EndedAt,t.SuspectedReaction,t.Version,t.VolumeMl);
     public async Task<PaginatedList<TransferRow>> Handle(TransferListQuery f,CancellationToken ct)
     {
         var a=await TransferAccess.Require(roles,auth,"post","/List",ct);var q=Scope(a);
@@ -45,9 +45,9 @@ public class TransferQueryHandler(BloodTransferService transfers,UserRoleService
     {
         var a=await TransferAccess.Require(roles,auth,"get","/Detail/{guid}",ct);
         var t=await Scope(a).Include(x=>x.Unit).Include(x=>x.CompatibilityTest).Include(x=>x.BloodRequest).ThenInclude(r=>r.Approvals).Include(x=>x.BloodRequest).ThenInclude(r=>r.PatientAdmission).AsSingleQuery().SingleOrDefaultAsync(x=>x.GUID==f.Guid,ct)??throw new ServiceExeption("حواله یافت نشد.");
-        var row=new TransferRow(t.GUID,t.TransferNumber,t.BankBloodUnitGUID,t.BloodRequestGUID,t.PatientAdmissionGUID,t.PatientName,t.HisNumber,t.Ward,t.UnitCode,t.ProductCode,t.BloodGroup,t.Status,t.DispatchedAt,t.ReceivedAt,t.StartedAt,t.EndedAt,t.SuspectedReaction,t.Version);
+        var row=new TransferRow(t.GUID,t.TransferNumber,t.BankBloodUnitGUID,t.BloodRequestGUID,t.PatientAdmissionGUID,t.PatientName,t.HisNumber,t.Ward,t.UnitCode,t.ProductCode,t.BloodGroup,t.Status,t.DispatchedAt,t.ReceivedAt,t.StartedAt,t.EndedAt,t.SuspectedReaction,t.Version,t.VolumeMl);
         var events=await Db.BloodTransferEvent.AsNoTracking().Where(x=>x.BloodTransferGUID==t.GUID).OrderBy(x=>x.OccurredAt).ThenBy(x=>x.GUID).Select(x=>new TransferEventView(x.Action,x.PreviousStatus,x.NewStatus,x.OccurredAt,x.ActorUserGUID,x.ActorRoleGUID,x.Notes,x.EvidenceJson)).ToListAsync(ct);
-        var vitals=await Db.BloodTransferVital.AsNoTracking().Where(x=>x.BloodTransferGUID==t.GUID).OrderBy(x=>x.MeasuredAt).ThenBy(x=>x.RecordedAt).ThenBy(x=>x.GUID).Select(x=>new VitalView(x.GUID,x.Phase,x.MeasuredAt,x.RecordedAt,x.Systolic,x.Diastolic,x.Pulse,x.Temperature,x.Spo2,x.Respiration,x.UrineMl,x.Notes,x.ActorUserGUID)).ToListAsync(ct);
+        var vitals=await Db.BloodTransferVital.AsNoTracking().Where(x=>x.BloodTransferGUID==t.GUID).OrderBy(x=>x.MeasuredAt).ThenBy(x=>x.RecordedAt).ThenBy(x=>x.GUID).Select(x=>new VitalView(x.GUID,x.Phase,x.MeasuredAt,x.RecordedAt,x.Systolic,x.Diastolic,x.Pulse,x.Temperature,x.Spo2,x.Respiration,x.UrineMl,x.Notes,x.ActorUserGUID,x.RateMlPerHour)).ToListAsync(ct);
         var changed=t.AdmissionVersion==null||!t.AdmissionVersion.SequenceEqual(t.BloodRequest.PatientAdmission.Version);
         return new(row,t.WristbandCode,t.BloodRequest.RequestNumber,t.CompatibilityTest.ReportReference,t.CompatibilityTest.RecordedAt,t.Unit.ExpiresAt,t.CarrierName,t.CarrierCode,t.ContainerCode,t.DispatchTemperature,t.TransportIndicator,t.PackCount,t.VerifiedBy,t.WitnessedBy,t.StartedBy,changed,t.Unit.Status=="Issued"&&TransferRules.Current(t,t.BloodRequest,t.Unit,t.CompatibilityTest,DateTime.UtcNow),t.HisNumber.StartsWith("DEMO-ST05-"),events,vitals);
     }

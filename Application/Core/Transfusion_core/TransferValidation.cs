@@ -16,7 +16,7 @@ public class TransferActionValidator:AbstractValidator<TransferActionInput>
         RuleFor(x=>x.Guid).NotEmpty();RuleFor(x=>x.Version).Must(v=>v?.Length==8);
         RuleFor(x=>x.UnitCode).MaximumLength(80);RuleFor(x=>x.WristbandCode).MaximumLength(80);
         RuleFor(x=>x.Notes).NotEmpty().MaximumLength(2000);RuleFor(x=>x.Temperature).Must(x=>x==null||x>=-273.15m&&x<=1000m);
-        RuleFor(x=>x.Condition).MaximumLength(100);RuleFor(x=>x.ReceiverName).MaximumLength(160);RuleFor(x=>x.NeedleReference).MaximumLength(100);
+        RuleFor(x=>x.VolumeMl).Must(x=>x==null||x>=0&&x<=1000000);RuleFor(x=>x.Condition).MaximumLength(100);RuleFor(x=>x.ReceiverName).MaximumLength(160);RuleFor(x=>x.NeedleReference).MaximumLength(100);
     }
 }
 public class VitalInputValidator:AbstractValidator<VitalInput>
@@ -27,6 +27,6 @@ public class VitalInputValidator:AbstractValidator<VitalInput>
         RuleFor(x=>x.MeasuredAt).NotEmpty();RuleFor(x=>x.Systolic).InclusiveBetween(0,1000);RuleFor(x=>x.Diastolic).InclusiveBetween(0,1000);
         RuleFor(x=>x.Pulse).InclusiveBetween(0,1000);RuleFor(x=>x.Temperature).InclusiveBetween(-273.15m,1000m);
         RuleFor(x=>x.Spo2).InclusiveBetween(0,100);RuleFor(x=>x.Respiration).InclusiveBetween(0,1000);
-        RuleFor(x=>x.UrineMl).Must(x=>x==null||x>=0&&x<=1000000);RuleFor(x=>x.Notes).MaximumLength(2000);
+        RuleFor(x=>x.RateMlPerHour).Must(x=>x==null||x>=0&&x<=1000000);RuleFor(x=>x.UrineMl).Must(x=>x==null||x>=0&&x<=1000000);RuleFor(x=>x.Notes).MaximumLength(2000);
     }
 }

@@ -85,6 +85,12 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
         var actor=await TransferAccess.Require(roles,auth,"post","/"+action,ct);var v=cmd.Input;Validate(new TransferActionValidator(),v);
         await Atomic(async()=>{
             var t=await Load(v.Guid,actor,ct);Check(t.Version,v.Version);var before=t.Status;var now=DateTime.UtcNow;
+            var actual=v.OccurredAt?.UtcDateTime??now;
+            if(actual>now||actual<t.DispatchedAt)throw Error("زمان واقعه باید پس از صدور و حداکثر زمان جاری باشد.");
+            // Verification/witness are authenticated contemporaneous attestations, not backdated signatures.
+            if(action is "Verify" or "Witness" or "DoctorNote")actual=now;
+            if(action is "Complete" or "Stop" && (!t.StartedAt.HasValue||actual<t.StartedAt.Value))throw Error("زمان پایان یا توقف پیش از شروع است.");
+            if(action=="Return"&&actual<(t.EndedAt??t.ReceivedAt??t.DispatchedAt)||action=="AcceptReturn"&&actual<(t.ReturnedAt??t.DispatchedAt)||action=="Dispose"&&actual<(t.ReturnAcceptedAt??t.DispatchedAt))throw Error("زمان واقعه با ترتیب گردش حواله مطابقت ندارد.");
             var next=action=="DoctorNote"?before:TransferRules.Next(before,action)??throw Error("عملیات در وضعیت فعلی مجاز نیست.");
             if(action is "Receive" or "Verify" or "Witness" or "Start")await RequireCurrent(t,actor,ct);
             if(action is "Receive" or "Verify" or "Witness" or "Start")Codes(v,t);
@@ -93,10 +99,10 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
             {
                 case "Receive":
                     if(v.Temperature==null||v.Condition!="Acceptable"||string.IsNullOrWhiteSpace(v.ReceiverName))throw Error("شرایط و نام تحویل‌گیرنده را ثبت کنید.");
-                    t.ReceivedAt=now;t.ReceivedBy=actor.UserGuid;break;
+                    t.ReceivedAt=actual;t.ReceivedBy=actor.UserGuid;break;
                 case "ReceiptHold":
                     if(string.IsNullOrWhiteSpace(v.UnitCode)||string.IsNullOrWhiteSpace(v.ReceiverName)||string.IsNullOrWhiteSpace(v.Condition)||v.Condition=="Acceptable")throw Error("نام تحویل‌گیرنده و دلیل مغایرت را ثبت کنید.");
-                    t.ReceivedAt=now;t.ReceivedBy=actor.UserGuid;break;
+                    t.ReceivedAt=actual;t.ReceivedBy=actor.UserGuid;break;
                 case "Verify":
                     t.VerifiedAt=now;t.VerifiedBy=actor.UserGuid;t.WitnessedAt=null;t.WitnessedBy=null;break;
                 case "Witness":
@@ -106,18 +112,19 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
                     if(t.SuspectedReaction||t.VerifiedBy!=actor.UserGuid||!TransferRules.DistinctWitness(t.VerifiedBy,t.WitnessedBy??Guid.Empty)||!t.VerifiedAt.HasValue||
                         !await Db.BloodTransferVital.AnyAsync(x=>x.BloodTransferGUID==t.GUID&&x.Phase=="T0"&&x.MeasuredAt>=t.VerifiedAt.Value,ct)||
                         string.IsNullOrWhiteSpace(v.NeedleReference))throw Error("تطبیق دو حساب، پایش اولیه بعد از تطبیق و ثبت مشخصات وسیله لازم است.");
-                    t.StartedAt=now;t.StartedBy=actor.UserGuid;break;
+                    if(!t.WitnessedAt.HasValue||actual<t.WitnessedAt.Value||!await Db.BloodTransferVital.AnyAsync(x=>x.BloodTransferGUID==t.GUID&&x.Phase=="T0"&&x.MeasuredAt>=t.VerifiedAt.Value&&x.MeasuredAt<=actual,ct))throw Error("زمان شروع باید بعد از تأیید شاهد و پایش اولیه باشد.");
+                    t.StartedAt=actual;t.StartedBy=actor.UserGuid;break;
                 case "Complete":
-                    if(v.SuspectedReaction||t.SuspectedReaction||!t.StartedAt.HasValue||!await Db.BloodTransferVital.AnyAsync(x=>x.BloodTransferGUID==t.GUID&&x.Phase=="End"&&x.MeasuredAt>=t.StartedAt.Value,ct))throw Error("پایش پایان و نبود گزارش نگرانی ثبت‌شده لازم است؛ در صورت نگرانی توقف را ثبت کنید.");
-                    t.EndedAt=now;t.EndedBy=actor.UserGuid;ChangeUnit(t.Unit,t,actor,"Transfused","Complete",v.Notes);break;
+                    if(v.SuspectedReaction||t.SuspectedReaction||!t.StartedAt.HasValue||!await Db.BloodTransferVital.AnyAsync(x=>x.BloodTransferGUID==t.GUID&&x.Phase=="End"&&x.MeasuredAt>=t.StartedAt.Value&&x.MeasuredAt<=actual,ct))throw Error("پایش پایان و نبود گزارش نگرانی ثبت‌شده لازم است؛ در صورت نگرانی توقف را ثبت کنید.");
+                    t.EndedAt=actual;t.EndedBy=actor.UserGuid;t.VolumeMl=v.VolumeMl;ChangeUnit(t.Unit,t,actor,"Transfused","Complete",v.Notes);break;
                 case "Stop":
-                    t.EndedAt=now;t.EndedBy=actor.UserGuid;t.SuspectedReaction|=v.SuspectedReaction;ChangeUnit(t.Unit,t,actor,"TransfusionStopped","Stop",v.Notes);break;
+                    t.EndedAt=actual;t.EndedBy=actor.UserGuid;t.VolumeMl=v.VolumeMl;t.SuspectedReaction|=v.SuspectedReaction;ChangeUnit(t.Unit,t,actor,"TransfusionStopped","Stop",v.Notes);break;
                 case "Return":
                     if(string.IsNullOrWhiteSpace(v.Condition)||string.IsNullOrWhiteSpace(v.ReceiverName))throw Error("وضعیت واحد و فرد انتقال‌دهنده لازم است.");
-                    t.ReturnedAt=now;ChangeUnit(t.Unit,t,actor,"Returning","Return",v.Notes);break;
+                    t.ReturnedAt=actual;ChangeUnit(t.Unit,t,actor,"Returning","Return",v.Notes);break;
                 case "AcceptReturn":
                     if(v.Temperature==null||string.IsNullOrWhiteSpace(v.Condition)||string.IsNullOrWhiteSpace(v.ReceiverName))throw Error("وضعیت، دما و نام تحویل‌گیرنده ثبت شود.");
-                    t.ReturnAcceptedAt=now;ChangeUnit(t.Unit,t,actor,"ReturnedHold","AcceptReturn",v.Notes);break;
+                    t.ReturnAcceptedAt=actual;ChangeUnit(t.Unit,t,actor,"ReturnedHold","AcceptReturn",v.Notes);break;
                 case "Dispose":
                     ChangeUnit(t.Unit,t,actor,"ReturnedDisposed","Dispose",v.Notes);break;
                 case "DoctorNote":
@@ -125,7 +132,7 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
                     t.SuspectedReaction|=v.SuspectedReaction;break;
             }
             t.Status=next;t.LastModified=now;
-            Log(t,actor,action,before,v.Notes,new{v.UnitCode,v.WristbandCode,v.Checks,v.Temperature,v.Condition,v.ReceiverName,v.NeedleReference,v.SuspectedReaction});
+            Log(t,actor,action,before,v.Notes,new{v.UnitCode,v.WristbandCode,v.Checks,v.Temperature,v.Condition,v.ReceiverName,v.NeedleReference,v.SuspectedReaction,v.VolumeMl,ActualOccurredAt=actual});
             return true;
         },ct);
     }
@@ -136,9 +143,9 @@ public class TransferCommandHandler(BloodTransferService transfers,UserRoleServi
             var t=await Load(v.Guid,actor,ct);Check(t.Version,v.Version);var now=DateTime.UtcNow;var measured=v.MeasuredAt.UtcDateTime;
             if(!TransferRules.VitalAllowed(t.Status,v.Phase)||measured>now||measured<t.DispatchedAt)throw Error("زمان یا نوبت پایش برای وضعیت جاری معتبر نیست.");
             if(v.Phase=="T0"&&(!t.VerifiedAt.HasValue||measured<t.VerifiedAt.Value)||
-                (v.Phase is "T15" or "Mid" or "End")&&(!t.StartedAt.HasValue||measured<t.StartedAt.Value)||
-                v.Phase=="Post1h"&&(!t.EndedAt.HasValue||measured<t.EndedAt.Value))throw Error("زمان اندازه‌گیری با مرحله حواله سازگار نیست.");
-            var row=new BloodTransferVital{BloodTransferGUID=t.GUID,ActorUserGUID=actor.UserGuid,ActorRoleGUID=actor.RoleGuid,Phase=v.Phase,MeasuredAt=measured,RecordedAt=now,Systolic=v.Systolic,Diastolic=v.Diastolic,Pulse=v.Pulse,Temperature=v.Temperature,Spo2=v.Spo2,Respiration=v.Respiration,UrineMl=v.UrineMl,Notes=v.Notes};
+                (v.Phase is "Start" or "T15" or "T30" or "T45" or "T60" or "Mid" or "End")&&(!t.StartedAt.HasValue||measured<t.StartedAt.Value)||
+                (v.Phase is "Post1h" or "Post2h")&&(!t.EndedAt.HasValue||measured<t.EndedAt.Value))throw Error("زمان اندازه‌گیری با مرحله حواله سازگار نیست.");
+            var row=new BloodTransferVital{BloodTransferGUID=t.GUID,ActorUserGUID=actor.UserGuid,ActorRoleGUID=actor.RoleGuid,Phase=v.Phase,MeasuredAt=measured,RecordedAt=now,Systolic=v.Systolic,Diastolic=v.Diastolic,Pulse=v.Pulse,Temperature=v.Temperature,Spo2=v.Spo2,Respiration=v.Respiration,UrineMl=v.UrineMl,RateMlPerHour=v.RateMlPerHour,Notes=v.Notes};
             Db.BloodTransferVital.Add(row);t.LastModified=now;Log(t,actor,"Vital",t.Status,v.Notes,new{VitalGuid=row.GUID,v.Phase,MeasuredAt=measured});return row.GUID;
         },ct);
     }

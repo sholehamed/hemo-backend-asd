@@ -28,6 +28,7 @@ public class BloodTransferConfiguration : IEntityTypeConfiguration<BloodTransfer
         builder.Property(x=>x.DispatchTemperature).HasPrecision(9,2);
         builder.Property(x=>x.TransportIndicator).IsUnicode().HasMaxLength(100).IsRequired();
         builder.Property(x=>x.Version).IsRowVersion();
+        builder.Property(x=>x.VolumeMl).HasPrecision(9,2);
         builder.HasIndex(x=>x.BankBloodUnitGUID).IsUnique();
         builder.HasIndex(x=>new { x.OrgLocationGUID, x.TransferNumber }).IsUnique();
         builder.HasIndex(x=>new { x.OrgLocationGUID, x.Status, x.DispatchedAt });

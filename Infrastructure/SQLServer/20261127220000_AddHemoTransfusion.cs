@@ -56,6 +56,7 @@ public partial class AddHemoTransfusion : Migration
             StartedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
             EndedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
             EndedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+            VolumeMl = table.Column<decimal>(type: "decimal(9,2)", precision: 9, scale: 2, nullable: true),
             SuspectedReaction = table.Column<bool>(type: "bit", nullable: false),
             ReturnedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
             ReturnAcceptedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -130,6 +131,7 @@ public partial class AddHemoTransfusion : Migration
             Temperature = table.Column<decimal>(type: "decimal(9,2)", precision: 9, scale: 2, nullable: false),
             Spo2 = table.Column<int>(type: "int", nullable: false),
             Respiration = table.Column<int>(type: "int", nullable: false),
+            RateMlPerHour = table.Column<decimal>(type: "decimal(9,2)", precision: 9, scale: 2, nullable: true),
             UrineMl = table.Column<decimal>(type: "decimal(9,2)", precision: 9, scale: 2, nullable: true),
             Notes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true)
         }, constraints: table =>

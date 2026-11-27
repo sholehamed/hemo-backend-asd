@@ -15,6 +15,7 @@ public class BloodTransferVital : AuditedEntity
     public decimal Temperature { get; set; }
     public int Spo2 { get; set; }
     public int Respiration { get; set; }
+    public decimal? RateMlPerHour { get; set; }
     public decimal? UrineMl { get; set; }
     public string? Notes { get; set; }
     public virtual BloodTransfer Transfer { get; set; } = null!;

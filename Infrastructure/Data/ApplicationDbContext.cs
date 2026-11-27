@@ -62,6 +62,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BankUnitEvent> BankUnitEvent { get; set; }
     public DbSet<BankTemperatureLog> BankTemperatureLog { get; set; }
 
+    public DbSet<BloodTransfer> BloodTransfer { get; set; }
+    public DbSet<BloodTransferEvent> BloodTransferEvent { get; set; }
+    public DbSet<BloodTransferVital> BloodTransferVital { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

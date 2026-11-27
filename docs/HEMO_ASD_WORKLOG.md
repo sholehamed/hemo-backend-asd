@@ -146,3 +146,18 @@
 - Concurrent integration fixture uses independent IHttpContextAccessor instances to avoid shared AsyncLocal state between synthetic actors. No production change.
 
 - Concurrent SQL test exposed actual SQL Server deadlock, wrapped by EF in InvalidOperationException → DbUpdateException → provider exception. Handle the wrapped database failure only within bank unit operation; fail safely, rollback, return refresh/review error instead of blindly retrying. Keep concurrency test and re-run.
+
+## ST-05 | ST05-01
+- بررسی ۹ صفحه Raw و قرارداد ST04؛ سه موجودیت حواله، رویداد و پایش، FK، unique unit، rowversion و migration؛ قواعد وضعیت و تست‌ها. در انتظار CI.
+
+### ST05-02/03/04 | CQRS و API
+- صدور واحد آماده با اعتبارسنجی مجدد ST04، حواله یکتا، شناسه‌های واقعی مشاهده‌شده و حمل مستند؛ دریافت یا مغایرت، تطبیق دو حساب مستقل، T0 و شروع، پایش، پایان/توقف، مرجوعی و دریافت بانک/امحا، یادداشت پزشک. تراکنش و rowversion، scope مرکز و مجوزهای صریح. محدودیت لازم ST04: نگرانی دمایی فقط واحدهای هنوز در بانک را تغییر می‌دهد. CI pending.
+
+### ST05-05 | نقش‌ها و داده تمرینی
+- افزوده شدن grants دقیق به کاربران موجود و حساب شاهد مستقل hemo.nurse.witness؛ فلگ Development و نمونه‌های مصنوعی مجزا با سابقه ST02–04 و چهار واحد آماده. اسناد API، حساب‌ها، شناسه‌های نمونه. CI در انتظار.
+
+### ST05 | آزمون SQL و Seed
+- سناریوی SQL از داده‌های واقعی seed‌شده در دیتابیس موقت استفاده می‌کند: تکرارپذیری، چهار پرونده، صدور تکراری، شناسه نامعتبر، دسترسی نقش، دو حساب، T0، پایش و پایان، مغایرت دریافت و مرجوعی، امحا، توقف/نگرانی پزشک، عدم تغییر وضعیت پس از گزارش دمای بانک، تغییر نسخه پذیرش، مرکز دیگر. نتیجه CI pending.
+
+### ST05 | تکمیل فرم Raw
+- CI 69cb5358: 78 غیر SQL + 6 SQL سبز. فیلد حجم مشاهده‌شده، سرعت ثبت‌شده، نوبت‌های تکمیلی و زمان واقعی اختیاری مستقل از زمان ثبت به ماژول اضافه شد. گزارش انقضای بانک واحدهای خارج‌شده را حذف می‌کند. تست SQL برای مقادیر ثبت‌شده گسترش یافت. CI جدید pending.

@@ -49,6 +49,10 @@ public interface  IApplicationDbContext
     public DbSet<BankUnitEvent> BankUnitEvent { get; set; }
     public DbSet<BankTemperatureLog> BankTemperatureLog { get; set; }
 
+    public DbSet<BloodTransfer> BloodTransfer { get; set; }
+    public DbSet<BloodTransferEvent> BloodTransferEvent { get; set; }
+    public DbSet<BloodTransferVital> BloodTransferVital { get; set; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
 

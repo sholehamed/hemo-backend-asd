@@ -42,15 +42,15 @@ public class HemoDemoSeedTests
         try
         {
             await db.Database.MigrateAsync(ct);
-            var accounts=HemoDemoSeed.DemoAccounts(true,true);
+            var accounts=HemoDemoSeed.DemoAccounts(true,true,true);
             var secrets=accounts.ToDictionary(a=>"HemoSeed:Passwords:"+a.Key,a=>(string?)("T!"+Guid.NewGuid().ToString("N")));
-            secrets["HemoSeed:IncludeBloodBank"]="true";
+            secrets["HemoSeed:IncludeTransfusion"]="true";
             var configuration=new ConfigurationBuilder().AddInMemoryCollection(secrets).Build();
             await HemoDemoSeed.ApplyAsync(db,configuration,ct);
             var userCount=await db.User.CountAsync(ct);
             var roleCount=await db.Role.CountAsync(ct);
             var grantCount=await db.RoleAccess.CountAsync(ct);
-            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"HemoSeed:IncludeBloodBank","true"}}).Build(),ct);
+            await HemoDemoSeed.ApplyAsync(db,new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"HemoSeed:IncludeTransfusion","true"}}).Build(),ct);
             Assert.Equal(userCount,await db.User.CountAsync(ct));
             Assert.Equal(roleCount,await db.Role.CountAsync(ct));
             Assert.Equal(grantCount,await db.RoleAccess.CountAsync(ct));

@@ -8,7 +8,7 @@ public static class HemoLoginContext
 {
     public static IQueryable<UserRole> EligibleRoles(IApplicationDbContext db, Guid userGuid, DateTime now) =>
         db.UserRole.Include(r=>r.Role).Where(r=>r.UserGUID==userGuid && r.ExpireDate>now &&
-            (r.Role.Gkey==1 || r.Role.RoleAccess.Any(a=>a.Menu.routerLink=="/admission" || a.Menu.routerLink=="/hemo/requests")));
+            (r.Role.Gkey==1 || r.Role.RoleAccess.Any(a=>a.Menu.routerLink=="/admission" || a.Menu.routerLink=="/hemo/requests" || a.Menu.routerLink=="/hemo/bank")));
 
     public static async Task<Token> IssueAsync(UserService users, User user, CancellationToken ct)
     {

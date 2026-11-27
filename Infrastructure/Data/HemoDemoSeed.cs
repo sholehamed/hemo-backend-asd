@@ -23,6 +23,21 @@ public static class HemoDemoSeed
         new("Doctor","hemo.doctor","HEMO | پزشک","پزشک",["list","detail","request-list","request-detail","request-stats","request-doctor","request-edit","request-submit","request-cancel","request-decide"]),
         new("BloodBank","hemo.bloodbank","HEMO | کارشناس بانک خون","بانک خون",["request-bank","request-bank-detail"])
     ];
+    public static readonly string[] BankReadKeys=["bank-inventory","bank-unit","bank-stats","bank-temperature-history"];
+    public static readonly string[] BankOperatorKeys=[..BankReadKeys,"bank-receive","bank-test","bank-reserve","bank-thaw","bank-ready","bank-hold","bank-unreserve","bank-temperature"];
+    public static readonly string[] BankSupervisorKeys=[..BankOperatorKeys,"bank-inspect","bank-discard","bank-return"];
+    public static readonly Account BankSupervisor=new("BankSupervisor","hemo.bank.supervisor","HEMO | مسئول بانک خون","مسئول بانک خون",["request-bank","request-bank-detail",..BankSupervisorKeys]);
+    public static readonly (string Key,string Method,string Path)[] BankEndpoints=[
+        ("bank-inventory","post","/Identity/BloodBank/Inventory"),("bank-unit","get","/Identity/BloodBank/Unit/{guid}"),("bank-stats","post","/Identity/BloodBank/Stats"),("bank-temperature-history","post","/Identity/BloodBank/TemperatureHistory"),
+        ("bank-receive","post","/Identity/BloodBank/Receive"),("bank-inspect","post","/Identity/BloodBank/Inspect"),("bank-test","post","/Identity/BloodBank/Test"),("bank-reserve","post","/Identity/BloodBank/Reserve"),
+        ("bank-thaw","post","/Identity/BloodBank/Thaw"),("bank-ready","post","/Identity/BloodBank/Ready"),("bank-hold","post","/Identity/BloodBank/Hold"),("bank-unreserve","post","/Identity/BloodBank/Unreserve"),
+        ("bank-discard","post","/Identity/BloodBank/Discard"),("bank-temperature","post","/Identity/BloodBank/Temperature"),("bank-return","post","/Identity/BloodBank/ReturnRequest")
+    ];
+    public static Account[] DemoAccounts(bool includeRequests,bool includeBank)
+    {
+        if(includeBank)return Accounts.Concat(BloodRequestAccounts.Select(a=>a.Key=="BloodBank"?a with{Permissions=[..a.Permissions,..BankOperatorKeys]}:a)).Append(BankSupervisor).ToArray();
+        return includeRequests?Accounts.Concat(BloodRequestAccounts).ToArray():Accounts;
+    }
     public static readonly (string Key,string Method,string Path)[] BloodRequestEndpoints=[
         ("request-list","post","/Identity/BloodRequest/BindPaging"),
         ("request-detail","get","/Identity/BloodRequest/{guid}"),
@@ -53,8 +68,9 @@ public static class HemoDemoSeed
     }
     public static async Task ApplyAsync(ApplicationDbContext db,IConfiguration config,CancellationToken ct)
     {
-        var includeRequests=config.GetValue<bool>("HemoSeed:IncludeBloodRequests");
-        var accounts=includeRequests?Accounts.Concat(BloodRequestAccounts).ToArray():Accounts;
+        var includeBank=config.GetValue<bool>("HemoSeed:IncludeBloodBank");
+        var includeRequests=includeBank||config.GetValue<bool>("HemoSeed:IncludeBloodRequests");
+        var accounts=DemoAccounts(includeRequests,includeBank);
         var pending=new Dictionary<string,string>();
         foreach(var account in accounts)
         {
@@ -118,9 +134,15 @@ public static class HemoDemoSeed
                 db.Menu.Add(requestMenu);await db.SaveChangesAsync(ct);
             }
         }
+        Menu? bankMenu=null;
+        if(includeBank)
+        {
+            bankMenu=await db.Menu.SingleOrDefaultAsync(m=>m.routerLink=="/hemo/bank",ct);
+            if(bankMenu==null){bankMenu=new Menu{label="مدیریت بانک خون",routerLink="/hemo/bank",icon="pi pi-inbox",ShowInMenu=true,Gorder=3,IsPublic=false};db.Menu.Add(bankMenu);await db.SaveChangesAsync(ct);}
+        }
         var apis=new Dictionary<string,Guid>();
         var endpointMenus=new Dictionary<string,Guid>();
-        foreach(var e in (includeRequests?Endpoints.Concat(BloodRequestEndpoints):Endpoints).Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
+        foreach(var e in (includeRequests?Endpoints.Concat(BloodRequestEndpoints):Endpoints).Concat(includeBank?BankEndpoints:Array.Empty<(string,string,string)>()).Concat(new[]{("login","post","/Identity/User/Login"),("hemo-login","post","/Identity/HemoSession/Login")}))
         {
             var api=await db.Api.FirstOrDefaultAsync(a=>a.SubSystemGUID==subsystem.GUID && a.APITypeName==e.Item2 && a.DownstreamPathTemplate==e.Item3,ct);
             if(api==null)
@@ -131,7 +153,7 @@ public static class HemoDemoSeed
             if(!api.Active)throw new InvalidOperationException("HEMO API is inactive: "+e.Item3);
             apis[e.Item1]=api.GUID;
             if(e.Item1 is "login" or "hemo-login")continue;
-            var targetMenu=e.Item1.StartsWith("request-")?requestMenu!:menu;
+            var targetMenu=e.Item1.StartsWith("bank-")?bankMenu!:e.Item1.StartsWith("request-")?requestMenu!:menu;
             endpointMenus[e.Item1]=targetMenu.GUID;
             if(!await db.MenuApi.AnyAsync(m=>m.MenuGUID==targetMenu.GUID&&m.ApiGUID==api.GUID,ct))
             {db.MenuApi.Add(new MenuApi{MenuGUID=targetMenu.GUID,ApiGUID=api.GUID});await db.SaveChangesAsync(ct);}

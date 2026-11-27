@@ -23,8 +23,8 @@
 | ST00-005 | بررسی نمونه‌های Frontend/Backend قبلی | DONE (reference review) | Angular 22/Material/Standalone و سند جامع فرآیندهای قبل |
 | ST00-006 | انتقال سند ۶۲ صفحه‌ای به مقصد | DONE | `docs/reference/HEMO_WORKFLOWS_AND_DATA_MODEL_FA.md` |
 | ST00-007 | تعریف سند توسعه، الزامات، مراحل، کیفیت، امنیت و Sliceها | DONE | `docs/HEMO_ASD_DEVELOPMENT_GUIDE_FA.md` |
-| ST00-008 | ایجاد سند/ثبت تغییرات Frontend | IN PROGRESS | PR مربوط به ریپوی Frontend |
-| ST00-009 | PR مرور مستندات برای هر دو ریپو | IN PROGRESS | پس از ثبت همه فایل‌ها |
+| ST00-008 | ایجاد سند/ثبت تغییرات Frontend | DONE | Frontend [#1](https://github.com/sholehamed/hemo-frontend-asd/pull/1) |
+| ST00-009 | PR مرور مستندات برای هر دو ریپو | DONE (OPEN PRs) | Backend [#1](https://github.com/sholehamed/hemo-backend-asd/pull/1) / Frontend [#1](https://github.com/sholehamed/hemo-frontend-asd/pull/1)؛ merge نشده |
 | ST01-001 | تثبیت اتصال و Bootstrap یکپارچه | TODO | کدنویسی نشده |
 | ST01-002 | اصلاح secrets، auth و seed | TODO | کدنویسی نشده |
 | ST01-003 | CI و تست‌ها | TODO / NOT RUN | SDK .NET در محیط تحلیل حاضر نبود؛ هیچ Build جدیدی اجرا نشده |
@@ -48,6 +48,8 @@
 `nurse-monitoring.html`, `nurse-workitems.html`, `supervisor-special.html`, `supervisor-quarterly.html`, `supervisor-quality.html`, `supervisor-staff.html`, `hv-manager-dashboard.html`, `hv-analysis.html`, `hv-committee.html`, `hv-training.html`, `hv-audit.html`, `hv-reports.html`.
 
 این‌ها **لینک در menu.js** هستند، نه شواهد وجود صفحه. نسخه‌های جایگزین باید با صفحات موجود مطابقت داده شوند.
+
+**Tracker اصلی:** [HEMO-ASD Master Roadmap #2](https://github.com/sholehamed/hemo-backend-asd/issues/2).
 
 ## نحوه افزودن رکورد جدید
 
